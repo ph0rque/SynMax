@@ -4,74 +4,74 @@ This checklist derives from `docs/PRD.md` and guides implementation order.
 
 ## 1) Scaffold agent structure under `./agent/`
 Subtasks:
-- 1.1 Create package layout: `agent/cli/`, `agent/planner/`, `agent/tools/`, `agent/exec/`, `agent/report/`, `agent/utils/`.
-- 1.2 Add `__init__.py` files and placeholders.
-- 1.3 Decide on config structure (YAML/JSON/env) and location.
+- [x] 1.1 Create package layout: `agent/cli/`, `agent/planner/`, `agent/tools/`, `agent/exec/`, `agent/report/`, `agent/utils/`.
+- [x] 1.2 Add `__init__.py` files and placeholders.
+- [ ] 1.3 Decide on config structure (YAML/JSON/env) and location.
 
 ## 2) Implement CLI `synmax-agent`
 Subtasks:
-- 2.1 Choose CLI lib (Typer or argparse); scaffold entrypoint.
-- 2.2 Add `--path` detection with default search in `./data/` and prompt fallback.
-- 2.3 Add `--model`, `--save-run`, `--max-preview-rows`, `--timeout-sec` flags.
-- 2.4 Implement interactive loop with `:exit` and help.
-- 2.5 Pretty console output using Rich.
+- [x] 2.1 Choose CLI lib (Typer or argparse); scaffold entrypoint.
+- [x] 2.2 Add `--path` detection with default search in `./data/` and prompt fallback.
+- [x] 2.3 Add `--model`, `--save-run`, `--max-preview-rows`, `--timeout-sec` flags.
+- [x] 2.4 Implement interactive loop with `:exit` and help.
+- [x] 2.5 Pretty console output using Rich.
 
 ## 3) DuckDB executor for Parquet
 Subtasks:
-- 3.1 Initialize DuckDB connection and safe `read_parquet` wrapper.
-- 3.2 Implement projection pruning (select needed columns only).
-- 3.3 Implement predicate pushdown for filters.
-- 3.4 Add timeout/row-limit guardrails.
-- 3.5 Unit tests on sample Parquet.
+- [x] 3.1 Initialize DuckDB connection and safe `read_parquet` wrapper.
+- [x] 3.2 Implement projection pruning (select needed columns only).
+- [x] 3.3 Implement predicate pushdown for filters.
+- [ ] 3.4 Add timeout/row-limit guardrails.
+- [ ] 3.5 Unit tests on sample Parquet.
 
 ## 4) Data profiling tool
 Subtasks:
-- 4.1 Schema/dtype inference and normalization.
-- 4.2 Null rate and basic descriptive stats.
-- 4.3 Distinct counts (sampled for high-cardinality) with warnings.
-- 4.4 `head`/preview with row limit.
-- 4.5 Cache profiling results for planning.
+- [x] 4.1 Schema/dtype inference and normalization.
+- [x] 4.2 Null rate and basic descriptive stats.
+- [ ] 4.3 Distinct counts (sampled for high-cardinality) with warnings.
+- [x] 4.4 `head`/preview with row limit.
+- [ ] 4.5 Cache profiling results for planning.
 
 ## 5) Deterministic planner (NL → SQL)
 Subtasks:
-- 5.1 Intent classifier (deterministic vs analytic) prompt and guardrails.
-- 5.2 Template library for count, group-by, filters, time windows.
-- 5.3 Column/metric validation against schema cache.
-- 5.4 Emit reproducible SQL and parameter bindings.
-- 5.5 Error handling: unknown columns, ambiguous terms.
+- [x] 5.1 Intent classifier (deterministic vs analytic) prompt and guardrails.
+- [ ] 5.2 Template library for count, group-by, filters, time windows.
+- [x] 5.3 Column/metric validation against schema cache.
+- [x] 5.4 Emit reproducible SQL and parameter bindings.
+- [ ] 5.5 Error handling: unknown columns, ambiguous terms.
 
 ## 6) Evidence reporter
 Subtasks:
-- 6.1 Compose final answer + evidence package (columns, filters, SQL/code, stats).
-- 6.2 Write artifacts to `./runs/<timestamp>/` as `plan.json`, `query.sql`, `results.json/md`.
-- 6.3 Enforce privacy (no raw rows to LLM); redact samples.
+- [ ] 6.1 Compose final answer + evidence package (columns, filters, SQL/code, stats).
+- [ ] 6.2 Write artifacts to `./runs/<timestamp>/` as `plan.json`, `query.sql`, `results.json/md`.
+- [ ] 6.3 Enforce privacy (no raw rows to LLM); redact samples.
 
 ## 7) Analytics tools
 Subtasks:
-- 7.1 Trends: group-by time windows, growth rates, MoM/QoQ summaries.
-- 7.2 Anomalies: z-score/IQR; spike detection with thresholds.
-- 7.3 Correlations: Pearson/Spearman; significance and warnings.
-- 7.4 Clustering: k-means/mini-batch; scaling and silhouette sanity.
-- 7.5 Caveat framework: uncertainty and limitations in outputs.
+- [x] 7.1 Trends: group-by time windows, growth rates, MoM/QoQ summaries.
+- [x] 7.2 Anomalies: z-score/IQR; spike detection with thresholds.
+- [ ] 7.3 Correlations: Pearson/Spearman; significance and warnings.
+- [ ] 7.4 Clustering: k-means/mini-batch; scaling and silhouette sanity.
+- [ ] 7.5 Caveat framework: uncertainty and limitations in outputs.
 
 ## 8) Privacy guardrails
 Subtasks:
-- 8.1 Static checks on planner outputs to block raw row leakage.
-- 8.2 Allow only schema/stats/aggregates in LLM context.
-- 8.3 Logging to prove compliance per run.
+- [ ] 8.1 Static checks on planner outputs to block raw row leakage.
+- [ ] 8.2 Allow only schema/stats/aggregates in LLM context.
+- [ ] 8.3 Logging to prove compliance per run.
 
 ## 9) Artifact saving
 Subtasks:
-- 9.1 Directory layout under `./runs/<ts>/`.
-- 9.2 File writers for JSON, SQL, and Markdown summary.
-- 9.3 Retention policy and `.gitignore` coverage.
+- [ ] 9.1 Directory layout under `./runs/<ts>/`.
+- [ ] 9.2 File writers for JSON, SQL, and Markdown summary.
+- [ ] 9.3 Retention policy and `.gitignore` coverage.
 
 ## 10) README & examples
 Subtasks:
-- 10.1 Installation & key setup.
-- 10.2 Dataset supply instructions and auto-discovery from `./data/`.
-- 10.3 Example queries and expected outputs.
-- 10.4 Assumptions and limitations disclosure.
+- [ ] 10.1 Installation & key setup.
+- [ ] 10.2 Dataset supply instructions and auto-discovery from `./data/`.
+- [ ] 10.3 Example queries and expected outputs.
+- [ ] 10.4 Assumptions and limitations disclosure.
 
 ## Dependencies and Parallelization Plan (Swarming)
 - Prereqs: 1.1–1.2 must land before active work; 1.3 can proceed in parallel.
