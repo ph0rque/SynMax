@@ -1,0 +1,22 @@
+# Byte-compiled / cache files
+__pycache__/
+*.py[cod]
+*.class
+
+# Virtual envs
+.venv/
+.env/
+.venv*/
+
+# Local data
+data/
+*.parquet
+
+# Runs and logs
+runs/
+logs/
+
+# OS junk
+.DS_Store
+
+.env
