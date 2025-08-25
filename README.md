@@ -16,6 +16,12 @@ pip install pandas
 - Place your Parquet under `./data/` (gitignored). Example: `./data/pipeline_data.parquet`.
 - Or pass `--path /absolute/path/to/file.parquet`.
 
+## Environment variables
+- OpenAI (optional for future LLM planner expansion): set `OPENAI_API_KEY`.
+  - Create a `.env` file at project root (see `.env.sample`) and add:
+    `OPENAI_API_KEY=sk-your-key-here`
+  - The CLI features implemented so far do not require the key, but providing it prepares for LLM-powered planning.
+
 ## Quick start
 Preview and ask a one-shot question:
 ```
