@@ -1,19 +1,26 @@
 # Active Context
 
 ## Current focus
-- Initialize Memory Bank and draft PRD.
-- Choose execution engine defaults that scale to ~25M rows.
+- Integrate planner and executor for deterministic queries with evidence.
+- Implement analytics modules (trends, anomalies, correlations, clustering).
+- Enforce privacy and save artifacts per run.
 
-Decision: Use DuckDB as the primary engine for Parquet queries; optionally use Polars for specific analytics where beneficial. Always project needed columns and push filters down.
+Decision: Use DuckDB as the primary engine for Parquet queries; optionally use Polars for specific analytics where beneficial. Always project needed columns and push filters down. Adopt argparse-based CLI with Rich for console output.
 
 ## Next steps
-1) Implement CLI skeleton: config, dataset path resolution, and session loop.
-2) Implement data profiling: schema, dtypes, basic stats, sample rows (with limits).
-3) Build deterministic query planner and executor (SQL generation via templates/AST).
-4) Add analytics tools: correlations, clustering (k-means/mini-batch), anomaly detection (z-score/IQR), with caveats.
-5) Evidence reporter: include SQL/code, filters, selected columns, and method notes in outputs.
-6) README quick start and examples.
+1) Wire CLI to planner, profiler, and executor for end-to-end deterministic queries.
+2) Implement SQL template library and parameter binding with validation against schema cache.
+3) Integrate reporter to save plan, SQL, and results under `./runs/<timestamp>/`.
+4) Build analytics tools: trends, anomalies (z-score/IQR), correlations, clustering.
+5) Add privacy guardrails (schema/aggregates only to LLM) and compliance logging.
+6) Write README quick start and example sessions.
 
 ## Open questions
 - Do we need join support across multiple Parquet files for v1? (Assume no.)
-- Which LLM provider should be default if both keys are set? (TBD.)
+- Default OpenAI model choice and token budgets.
+
+## Recent decisions
+- Repository created as private on GitHub.
+- `.env` and `data/` are excluded from version control.
+- Directory structure implemented under `./agent/`.
+- CLI uses argparse, with Rich for output.
