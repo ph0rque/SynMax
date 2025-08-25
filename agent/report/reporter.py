@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import time
+from datetime import date, datetime, time as dtime
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -27,6 +28,13 @@ class Reporter:
         return str(run_dir)
 
     def _safe_json(self, obj: Any):
+        # Normalize common datetime types
+        if isinstance(obj, (date, datetime, dtime)):
+            return str(obj)
+        if isinstance(obj, list):
+            return [self._safe_json(x) for x in obj[:100]]
+        if isinstance(obj, dict):
+            return {k: self._safe_json(v) for k, v in obj.items()}
         try:
             import pandas as pd  # type: ignore
             if isinstance(obj, pd.DataFrame):
@@ -36,7 +44,11 @@ class Reporter:
         try:
             import pyarrow as pa  # type: ignore
             if isinstance(obj, pa.Table):
-                return obj.slice(0, 100).to_pydict()
+                # Convert to python dict and normalize nested values
+                pyd = obj.slice(0, 100).to_pydict()
+                return {k: [self._safe_json(v) for v in vals] for k, vals in pyd.items()}
+            if isinstance(obj, pa.Scalar):
+                return self._safe_json(obj.as_py())
         except Exception:
             pass
         try:

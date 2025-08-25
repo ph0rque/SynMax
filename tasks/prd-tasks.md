@@ -50,8 +50,10 @@ Subtasks:
 Subtasks:
 - [x] 7.1 Trends: group-by time windows, growth rates, MoM/QoQ summaries.
 - [x] 7.2 Anomalies: z-score/IQR; spike detection with thresholds.
-- [ ] 7.3 Correlations: Pearson/Spearman; significance and warnings.
+- [x] 7.3 Correlations: Pearson/Spearman; significance and warnings.
 - [ ] 7.4 Clustering: k-means/mini-batch; scaling and silhouette sanity.
+  - [x] 7.4.1 Implement k-means over monthly pipeline profiles
+  - [ ] 7.4.2 Add scaling options and silhouette reporting
 - [ ] 7.5 Caveat framework: uncertainty and limitations in outputs.
 
 ## 8) Privacy guardrails
