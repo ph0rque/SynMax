@@ -8,10 +8,12 @@ try:
     from rich.console import Console
     from rich.prompt import Prompt
     from rich.panel import Panel
+    from rich.table import Table
 except Exception:  # pragma: no cover
     Console = None
     Prompt = None
     Panel = None
+    Table = None
 
 DEFAULT_DATA_DIR = os.path.abspath(os.path.join(os.getcwd(), "data"))
 
@@ -71,16 +73,46 @@ def main(argv=None):
         print(f"Loaded dataset: {parquet_path}")
         print(df.head())
 
-    # Simple interactive loop stub
+    # Simple interactive loop
     while True:
         q = Prompt.ask("Ask a question (:exit to quit)") if Prompt else input("Q (:exit to quit): ")
         if q.strip().lower() in {":exit", ":quit", "exit", "quit"}:
             break
-        # TODO: wire planner and executor
-        if console:
-            console.print(Panel.fit("Planning & execution coming soon..."))
+
+        # Rule-based deterministic planner path
+        from agent.exec.duck import DuckDBExecutor
+        from agent.utils.schema_cache import SchemaCache
+        from agent.planner.rule_planner import parse_simple
+        from agent.exec.sql_builder import build_sql
+
+        executor = DuckDBExecutor()
+        schema = SchemaCache().get_or_load(executor, parquet_path)
+        parsed = parse_simple(q, schema)
+        if parsed.plan is None:
+            msg = "I can preview, sum scheduled_quantity, distinct counts, group-bys, and top-N by a column."
+            (console.print(Panel.fit(msg)) if console else print(msg))
+            continue
+
+        sql, params = build_sql(parquet_path, parsed.plan, schema)
+        result = executor.query(sql, params)
+
+        if console and Table:
+            table = Table(title=f"{parsed.notes}")
+            try:
+                import pyarrow as pa  # type: ignore
+                if isinstance(result, pa.Table):
+                    for name in result.column_names:
+                        table.add_column(name)
+                    for i in range(min(20, result.num_rows)):
+                        row = [str(result.column(j)[i].as_py()) for j in range(result.num_columns)]
+                        table.add_row(*row)
+                    console.print(table)
+                else:
+                    console.print(str(result))
+            except Exception:
+                console.print(str(result))
         else:
-            print("Planning & execution coming soon...")
+            print(result)
 
 
 if __name__ == "__main__":
