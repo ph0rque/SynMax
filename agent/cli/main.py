@@ -62,6 +62,8 @@ def _render_result(console, title: str, result):
 def main(argv=None):
     argv = argv or sys.argv[1:]
     import argparse
+    import re
+    import time as _time
     parser = argparse.ArgumentParser(prog="synmax-agent", description="SynMax Data Agent")
     parser.add_argument("--path", dest="path", default=None, help="Path to parquet (defaults to ./data)")
     parser.add_argument("--model", dest="model", default=os.environ.get("OPENAI_MODEL", "gpt-4o-mini"))
@@ -100,6 +102,7 @@ def main(argv=None):
     from agent.exec.sql_builder import build_sql
     from agent.report.reporter import Reporter
     from agent.tools.analytics import correlation_pipelines, cluster_pipelines_monthly
+    from agent.planner.llm_explain import summarize_answer
 
     def run_once(question: str):
         executor = DuckDBExecutor()
@@ -108,12 +111,40 @@ def main(argv=None):
 
         # Analytics triggers
         if "correlation" in ql or "correlat" in ql:
+            t0 = _time.time()
             result = correlation_pipelines(executor, parquet_path)
+            latency = _time.time() - t0
             _render_result(console, "pipeline correlation (top pairs)", result)
+            if args.save_run:
+                reporter = Reporter()
+                expl = summarize_answer(question, "--analytics: correlation_pipelines", result, args.model) or ""
+                summary = (f"Question: {question}\n\n" + (expl + "\n\n" if expl else "") + "Notes: correlation of daily totals across top pipelines")
+                run_dir = reporter.save_artifacts({"intent": "analytic", "notes": "correlation"}, None, result, summary, latency_sec=latency)
+                (console.print(Panel.fit(f"Artifacts saved to {run_dir} (Latency: {latency:.2f}s)")) if console else print(f"Artifacts saved to {run_dir} (Latency: {latency:.2f}s)"))
             return 0
         if "cluster" in ql or "clustering" in ql:
-            result = cluster_pipelines_monthly(executor, parquet_path)
-            _render_result(console, "pipeline clusters (monthly profile)", result)
+            # parse k and scaling from text (e.g., "k=6", "scale=minmax")
+            k = 5
+            scaling = "standard"
+            m = re.search(r"k\s*=\s*(\d+)", ql)
+            if m:
+                try:
+                    k = int(m.group(1))
+                except Exception:
+                    k = 5
+            m = re.search(r"scale\s*=\s*(standard|minmax|none)", ql)
+            if m:
+                scaling = m.group(1)
+            t0 = _time.time()
+            result = cluster_pipelines_monthly(executor, parquet_path, k=k, scaling=scaling)
+            latency = _time.time() - t0
+            _render_result(console, f"pipeline clusters (k={k}, scaling={scaling})", result)
+            if args.save_run:
+                reporter = Reporter()
+                expl = summarize_answer(question, f"--analytics: cluster_pipelines_monthly (k={k}, scaling={scaling})", result, args.model) or ""
+                summary = (f"Question: {question}\n\n" + (expl + "\n\n" if expl else "") + f"Notes: k-means clustering (k={k}, scaling={scaling})")
+                run_dir = reporter.save_artifacts({"intent": "analytic", "notes": "clustering"}, None, result, summary, latency_sec=latency)
+                (console.print(Panel.fit(f"Artifacts saved to {run_dir} (Latency: {latency:.2f}s)")) if console else print(f"Artifacts saved to {run_dir} (Latency: {latency:.2f}s)"))
             return 0
 
         # Deterministic rule-based
@@ -128,7 +159,9 @@ def main(argv=None):
             console.print(sql)
         else:
             print("Executed SQL:\n" + sql)
+        t0 = _time.time()
         result = executor.query(sql, params)
+        latency = _time.time() - t0
         _render_result(console, parsed.notes, result)
         if args.save_run:
             reporter = Reporter()
@@ -142,11 +175,13 @@ def main(argv=None):
                     "limit": parsed.plan.limit,
                 },
             }
-            run_dir = reporter.save_artifacts(plan_dict, sql, result, markdown_summary=f"Question: {question}\n\nNotes: {parsed.notes}")
+            expl = summarize_answer(question, sql, result, args.model) or ""
+            summary = f"Question: {question}\n\n" + (expl + "\n\n" if expl else "") + f"Notes: {parsed.notes}"
+            run_dir = reporter.save_artifacts(plan_dict, sql, result, markdown_summary=summary, latency_sec=latency)
             if console:
-                console.print(Panel.fit(f"Artifacts saved to {run_dir}"))
+                console.print(Panel.fit(f"Artifacts saved to {run_dir} (Latency: {latency:.2f}s)"))
             else:
-                print(f"Artifacts saved to {run_dir}")
+                print(f"Artifacts saved to {run_dir} (Latency: {latency:.2f}s)")
         return 0
 
     # Non-interactive

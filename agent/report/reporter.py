@@ -18,13 +18,33 @@ class Reporter:
         p.mkdir(parents=True, exist_ok=True)
         return p
 
-    def save_artifacts(self, plan: Dict[str, Any], sql: Optional[str], results: Any, markdown_summary: str) -> str:
+    def _prune_runs(self) -> None:
+        max_runs = int(os.environ.get("RUNS_RETENTION", "50"))
+        base = Path(self.base_dir)
+        if not base.exists():
+            return
+        dirs = sorted([d for d in base.iterdir() if d.is_dir()], key=lambda d: d.name, reverse=True)
+        for old in dirs[max_runs:]:
+            try:
+                for child in old.rglob('*'):
+                    if child.is_file():
+                        child.unlink(missing_ok=True)  # type: ignore[arg-type]
+                old.rmdir()
+            except Exception:
+                # best-effort prune
+                pass
+
+    def save_artifacts(self, plan: Dict[str, Any], sql: Optional[str], results: Any, markdown_summary: str, latency_sec: Optional[float] = None) -> str:
         run_dir = self._run_dir()
         (run_dir / "plan.json").write_text(json.dumps(plan, indent=2))
         if sql:
             (run_dir / "query.sql").write_text(sql)
         (run_dir / "results.json").write_text(json.dumps(self._safe_json(results), indent=2))
+        if latency_sec is not None:
+            markdown_summary = f"Latency: {latency_sec:.2f}s\n\n" + markdown_summary
         (run_dir / "summary.md").write_text(markdown_summary)
+        # Prune older runs
+        self._prune_runs()
         return str(run_dir)
 
     def _safe_json(self, obj: Any):
