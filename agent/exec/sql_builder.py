@@ -89,9 +89,12 @@ def build_sql(parquet_path: str, plan: QueryPlan, schema: SchemaSnapshot) -> Tup
         parts = [f"{expr} {direction}" for expr, direction in plan.order_by]
         sql += " ORDER BY " + ", ".join(parts)
 
-    # Limit
+    # Limit (default when grouped and no explicit limit)
     if plan.limit is not None:
         sql += " LIMIT ?"
         params.append(plan.limit)
+    elif gb_parts:
+        sql += " LIMIT ?"
+        params.append(1000)
 
     return sql, params
