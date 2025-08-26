@@ -395,16 +395,19 @@ def seasonality_summary(
     if group_col:
         qcol = escape_ident(group_col)
         sql = (
-            f"SELECT EXTRACT('month' FROM eff_gas_day)::INT AS month, {qcol} AS key, "
-            f"       AVG(SUM(COALESCE(scheduled_quantity, 0))) OVER (PARTITION BY {qcol}, EXTRACT('month' FROM eff_gas_day)) AS avg_total "
-            f"FROM read_parquet(?) GROUP BY 1,2 ORDER BY 1"
+            f"WITH monthly AS ("
+            f"  SELECT date_trunc('month', eff_gas_day)::DATE AS ym, EXTRACT('month' FROM eff_gas_day)::INT AS month, {qcol} AS key,"
+            f"         SUM(COALESCE(scheduled_quantity, 0)) AS total_month "
+            f"  FROM read_parquet(?) GROUP BY 1,2,3"
+            f") SELECT month, key, AVG(total_month) AS avg_total FROM monthly GROUP BY 1,2 ORDER BY 1,2"
         )
-        tbl = executor.query(sql, [parquet_path])
-        return tbl
+        return executor.query(sql, [parquet_path])
     else:
         sql = (
-            "SELECT EXTRACT('month' FROM eff_gas_day)::INT AS month, "
-            "       AVG(SUM(COALESCE(scheduled_quantity, 0))) OVER (PARTITION BY EXTRACT('month' FROM eff_gas_day)) AS avg_total "
-            "FROM read_parquet(?) GROUP BY 1 ORDER BY 1"
+            "WITH monthly AS ("
+            "  SELECT date_trunc('month', eff_gas_day)::DATE AS ym, EXTRACT('month' FROM eff_gas_day)::INT AS month,"
+            "         SUM(COALESCE(scheduled_quantity, 0)) AS total_month "
+            "  FROM read_parquet(?) GROUP BY 1,2"
+            ") SELECT month, AVG(total_month) AS avg_total FROM monthly GROUP BY 1 ORDER BY 1"
         )
         return executor.query(sql, [parquet_path])

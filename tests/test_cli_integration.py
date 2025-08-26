@@ -68,6 +68,18 @@ def test_cli_sudden_shifts():
     assert 'Answer:' in out
 
 
+def test_cli_seasonality():
+    code, out = run_query('seasonality by pipeline_name')
+    assert code == 0
+    assert 'Answer:' in out
+
+
+def test_cli_top_trending():
+    code, out = run_query('top trending by pipeline_name top 5 min-months=3')
+    assert code == 0
+    assert 'Answer:' in out
+
+
 def test_daily_totals_runs():
     ex = DuckDBExecutor()
     tbl = daily_totals(ex, 'tests/fixtures/sample.parquet')
