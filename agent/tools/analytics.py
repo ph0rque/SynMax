@@ -326,6 +326,85 @@ def trends_summary(
                 cols[f"ma_{w}"] = []
             return pa.table(cols)
         df = df.sort_values("day").reset_index(drop=True)
-        for w in window_ma:
-            df[f"ma_{w}"] = df["total_qty"].rolling(window=w, min_periods=max(2, w // 2)).mean()
-        return pa.Table.from_pandas(df, preserve_index=False)
+        # Optional Polars acceleration for rolling means
+        try:
+            import os as _os  # type: ignore
+            use_polars = _os.environ.get("USE_POLARS", "0") in {"1", "true", "True"}
+            if use_polars:
+                import polars as pl  # type: ignore
+                pldf = pl.from_pandas(df)
+                for w in window_ma:
+                    pldf = pldf.with_columns(pl.col("total_qty").rolling_mean(window_size=w, min_periods=max(2, w // 2)).alias(f"ma_{w}"))
+                out_df = pldf.to_pandas()
+            else:
+                raise Exception()
+        except Exception:
+            out_df = df.copy()
+            for w in window_ma:
+                out_df[f"ma_{w}"] = out_df["total_qty"].rolling(window=w, min_periods=max(2, w // 2)).mean()
+        return pa.Table.from_pandas(out_df, preserve_index=False)
+
+
+def top_trending_segments(
+    executor: DuckDBExecutor,
+    parquet_path: str,
+    group_col: str = "pipeline_name",
+    n: int = 10,
+    min_months: int = 6,
+) -> pa.Table:
+    """
+    Identify top-K trending segments by last-month MoM growth on monthly totals.
+    group_col: dimension to group by (e.g., pipeline_name, category_short)
+    min_months: require at least this many months of observations
+    """
+    qcol = escape_ident(group_col)
+    sql = (
+        f"SELECT date_trunc('month', eff_gas_day)::DATE AS month, {qcol} AS key, "
+        f"       SUM(COALESCE(scheduled_quantity, 0)) AS total "
+        f"FROM read_parquet(?) GROUP BY 1,2 ORDER BY 1"
+    )
+    tbl = executor.query(sql, [parquet_path])
+    df = tbl.to_pandas()
+    if df.empty:
+        return pa.table({"key": [], "mom_growth": [], "months_observed": [], "last_total": []})
+    df = df.sort_values("month")
+    pivot = df.pivot(index="month", columns="key", values="total").sort_index()
+    growth = pivot.pct_change()
+    last_growth = growth.tail(1).T
+    last_total = pivot.tail(1).T
+    months_observed = pivot.notna().sum(axis=0)
+    out = pd.DataFrame({
+        "key": last_growth.index,
+        "mom_growth": last_growth.iloc[:, 0].values,
+        "months_observed": months_observed.values,
+        "last_total": last_total.iloc[:, 0].values,
+    })
+    out = out.replace([np.inf, -np.inf], np.nan).dropna(subset=["mom_growth"])  # type: ignore[list-item]
+    out = out[out["months_observed"] >= int(min_months)].sort_values("mom_growth", ascending=False).head(int(n))
+    return pa.Table.from_pandas(out, preserve_index=False)
+
+
+def seasonality_summary(
+    executor: DuckDBExecutor,
+    parquet_path: str,
+    group_col: Optional[str] = None,
+) -> pa.Table:
+    """
+    Month-of-year seasonality summary: average total by month (optionally by segment).
+    """
+    if group_col:
+        qcol = escape_ident(group_col)
+        sql = (
+            f"SELECT EXTRACT('month' FROM eff_gas_day)::INT AS month, {qcol} AS key, "
+            f"       AVG(SUM(COALESCE(scheduled_quantity, 0))) OVER (PARTITION BY {qcol}, EXTRACT('month' FROM eff_gas_day)) AS avg_total "
+            f"FROM read_parquet(?) GROUP BY 1,2 ORDER BY 1"
+        )
+        tbl = executor.query(sql, [parquet_path])
+        return tbl
+    else:
+        sql = (
+            "SELECT EXTRACT('month' FROM eff_gas_day)::INT AS month, "
+            "       AVG(SUM(COALESCE(scheduled_quantity, 0))) OVER (PARTITION BY EXTRACT('month' FROM eff_gas_day)) AS avg_total "
+            "FROM read_parquet(?) GROUP BY 1 ORDER BY 1"
+        )
+        return executor.query(sql, [parquet_path])

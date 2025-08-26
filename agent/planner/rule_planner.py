@@ -62,6 +62,11 @@ def parse_simple(question: str, schema: SchemaSnapshot) -> "ParseResult":
         # optional state/year/receipts-deliveries handled later in CLI
         return ParseResult(plan=None, intent="analytic", notes="anomalies vs category", special={"type": "anomalies_vs_category", "z": z, "min_days": min_days})
 
+    # Trends intent
+    if "trend" in ql or "trends" in ql:
+        by = "month" if ("month" in ql or "by month" in ql) else ("day" if ("day" in ql or "by day" in ql) else "month")
+        return ParseResult(plan=None, intent="analytic", notes="trends summary", special={"type": "trends", "by": by})
+
     # COUNT rows
     if re.search(r"\bcount\b", ql) and not re.search(r"distinct", ql):
         return ParseResult(

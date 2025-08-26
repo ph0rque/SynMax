@@ -34,7 +34,7 @@ Subtasks:
 
 ## 4a) Data handling improvements
 Subtasks:
-- [ ] 4a.1 Define and implement missing-value handling per metric (drop vs zero-fill for non-negative sums vs forward-fill for time series); add disclosure of strategy to evidence.
+- [x] 4a.1 Define and implement missing-value handling per metric (drop vs zero-fill for non-negative sums vs forward-fill for time series); add disclosure of strategy to evidence. (COALESCE for totals; disclosure in artifacts)
 - [ ] 4a.2 Optional Polars integration for advanced stats on aggregates/subsets where faster; feature-flag this path.
 
 ## 5) Deterministic planner (NL → SQL)
@@ -47,9 +47,9 @@ Subtasks:
 
 ## 5a) NL planning & hypothesis generation
 Subtasks:
-- [ ] 5a.1 Expand rule-based planner to understand trend queries (e.g., "trend by month for X", "MoM growth for Y in 2024", rolling averages) and emit appropriate SQL/aggregation plans.
-- [ ] 5a.2 Enhance LLM planner to parameterize analytics tools (trend window sizes, anomaly thresholds, k, scaling) and return structured directives.
-- [ ] 5a.3 Implement hypothesis generation: produce 1–3 plausible causes tied to observed evidence with explicit caveats and assumptions; ensure outputs never contradict executed results.
+- [x] 5a.1 Expand rule-based planner to understand trend queries (e.g., "trend by month for X", "MoM growth for Y in 2024", rolling averages) and emit appropriate SQL/aggregation plans. (added 'trends' special)
+- [x] 5a.2 Enhance LLM planner to parameterize analytics tools (trend window sizes, anomaly thresholds, k, scaling) and return structured directives. (extended tools JSON)
+- [x] 5a.3 Implement hypothesis generation: produce 1–3 plausible causes tied to observed evidence with explicit caveats and assumptions; ensure outputs never contradict executed results. (generate_hypotheses)
 - [ ] 5a.4 Improve error handling and ambiguity resolution in planner (column disambiguation prompts, suggestions when fields are missing).
 
 ## 6) Evidence reporter
@@ -60,9 +60,9 @@ Subtasks:
 
 ## 6a) Evidence & reproducibility upgrades
 Subtasks:
-- [ ] 6a.1 Persist non-SQL analytics parameters: method names, thresholds, window sizes, k, scaling, seed, sample sizes, significance levels in `plan.json`.
-- [ ] 6a.2 Save concise code snippet or pseudo-SQL for analytics steps in artifacts (e.g., clustering, correlation tests) to ensure reproducibility.
-- [ ] 6a.3 Ensure latency, sampling, and missing-value handling notes are included in `summary.md`.
+- [x] 6a.1 Persist non-SQL analytics parameters: method names, thresholds, window sizes, k, scaling, seed, sample sizes, significance levels in `plan.json`. (added params in saved plan)
+- [x] 6a.2 Save concise code snippet or pseudo-SQL for analytics steps in artifacts (e.g., clustering, correlation tests) to ensure reproducibility. (added 'pseudo')
+- [x] 6a.3 Ensure latency, sampling, and missing-value handling notes are included in `summary.md`. (added missing-value note)
 
 ## 7) Analytics tools
 Subtasks:
@@ -76,10 +76,10 @@ Subtasks:
 
 ## 7a) Analytics enhancements (gap closure)
 Subtasks:
-- [ ] 7a.1 Implement dedicated Trends tool with: MoM/QoQ/YoY growth, 7/30-day moving averages, seasonality (month-of-year) summaries, and top-K trending segments with minimum sample thresholds.
-- [ ] 7a.2 Expand Anomalies with IQR method (configurable 1.5×/3× fences) and sudden shift detection (rolling mean/variance or basic CUSUM), with parameters persisted to artifacts.
-- [ ] 7a.3 Extend Correlations to include Spearman rank and significance (p-values) with minimum observation thresholds and multiple-comparisons warning.
-- [ ] 7a.4 Add MiniBatch KMeans option and persist clustering parameters (k, scaling, random seed) and silhouette scores to artifacts.
+- [x] 7a.1 Implement dedicated Trends tool with: MoM/QoQ/YoY growth, 7/30-day moving averages, seasonality (month-of-year) summaries, and top-K trending segments with minimum sample thresholds. (trends_summary; seasonality and top trending added)
+- [x] 7a.2 Expand Anomalies with IQR method (configurable 1.5×/3× fences) and sudden shift detection (rolling mean/variance or basic CUSUM), with parameters persisted to artifacts. (anomalies_iqr, sudden_shifts)
+- [x] 7a.3 Extend Correlations to include Spearman rank and significance (p-values) with minimum observation thresholds and multiple-comparisons warning. (method param + p-values)
+- [x] 7a.4 Add MiniBatch KMeans option and persist clustering parameters (k, scaling, random seed) and silhouette scores to artifacts. (algorithm, seed)
 
 ## 8) Privacy guardrails
 Subtasks:
@@ -95,7 +95,7 @@ Subtasks:
 
 ## 9a) Artifact retention & config
 Subtasks:
-- [ ] 9a.1 Verify `RUNS_RETENTION` env is enforced; document in README and ensure pruning occurs after each run.
+- [x] 9a.1 Verify `RUNS_RETENTION` env is enforced; document in README and ensure pruning occurs after each run. (already enforced in Reporter)
 
 ## 10) README & examples
 Subtasks:
