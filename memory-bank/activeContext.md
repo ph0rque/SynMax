@@ -7,9 +7,8 @@
 Decision: Use DuckDB as the primary engine for Parquet queries; optionally use Polars for specific analytics where beneficial. Always project needed columns and push filters down. Adopt argparse-based CLI with Rich for console output.
 
 ## Next steps
-1) README: add end-to-end examples for seasonality, top trending, IQR, sudden shifts, Spearman+p-values, MiniBatch clusters; document hypothesis generation.
-2) Minor planner improvements for disambiguation and suggestions.
-3) Performance tuning on large datasets; validate USE_POLARS gains.
+1) Performance tuning on large datasets; validate USE_POLARS gains.
+2) Extend examples as new datasets/segments are added.
 
 ## Open questions
 - Do we need join support across multiple Parquet files for v1? (Assume no.)

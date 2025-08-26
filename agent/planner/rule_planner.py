@@ -14,6 +14,7 @@ class ParseResult:
     intent: str  # 'deterministic' | 'analytic' | 'unknown'
     notes: str = ""
     special: Optional[Dict[str, Any]] = None  # extra directives for analytics
+    suggestions: Optional[List[str]] = None   # guidance for ambiguous/unknown cases
 
 
 def _find_column(schema: SchemaSnapshot, name: str) -> Optional[str]:
@@ -27,6 +28,25 @@ def _find_column(schema: SchemaSnapshot, name: str) -> Optional[str]:
         if n.lower().startswith(name.lower()):
             return n
     return None
+
+
+def _suggest_columns(schema: SchemaSnapshot, token: str, limit: int = 5) -> List[str]:
+    names = [c.name for c in schema.columns]
+    token_l = token.lower()
+    # simple contains match, then prefix
+    contains = [n for n in names if token_l in n.lower()]
+    if contains:
+        return contains[:limit]
+    prefixes = [n for n in names if n.lower().startswith(token_l)]
+    if prefixes:
+        return prefixes[:limit]
+    # fuzzy fallback
+    try:
+        import difflib
+        matches = difflib.get_close_matches(token, names, n=limit, cutoff=0.6)
+        return matches
+    except Exception:
+        return []
 
 
 def _parse_filters(ql: str, schema: SchemaSnapshot) -> List[Filter]:
@@ -78,13 +98,16 @@ def parse_simple(question: str, schema: SchemaSnapshot) -> "ParseResult":
     # DISTINCT count of column
     m = re.search(r"distinct\s+([a-zA-Z0-9_]+)", ql)
     if m:
-        col = _find_column(schema, m.group(1))
+        token = m.group(1)
+        col = _find_column(schema, token)
         if col:
             return ParseResult(
                 intent="deterministic",
                 plan=QueryPlan(columns=[], filters=_parse_filters(ql, schema), group_by=[], aggregations={"distinct_count": f"COUNT(DISTINCT {col})"}, order_by=[], limit=None),
                 notes=f"distinct count of {col}"
             )
+        else:
+            return ParseResult(plan=None, intent="unknown", notes="unknown column for distinct", suggestions=_suggest_columns(schema, token))
 
     # TOTAL scheduled_quantity (optionally by <col> or by month)
     if "scheduled_quantity" in ql and ("sum" in ql or "total" in ql):
@@ -110,7 +133,8 @@ def parse_simple(question: str, schema: SchemaSnapshot) -> "ParseResult":
     m = re.search(r"top\s+(\d+)\s+([a-zA-Z0-9_]+).*by.*scheduled_quantity", ql)
     if m:
         n = int(m.group(1))
-        col = _find_column(schema, m.group(2))
+        token = m.group(2)
+        col = _find_column(schema, token)
         if col:
             return ParseResult(
                 intent="deterministic",
@@ -124,11 +148,14 @@ def parse_simple(question: str, schema: SchemaSnapshot) -> "ParseResult":
                 ),
                 notes=f"top {n} {col} by total scheduled_quantity",
             )
+        else:
+            return ParseResult(plan=None, intent="unknown", notes="unknown column for top-n", suggestions=_suggest_columns(schema, token))
 
     # GROUP BY <col> totals
     m = re.search(r"total.*by\s+([a-zA-Z0-9_]+)", ql)
     if m:
-        col = _find_column(schema, m.group(1))
+        token = m.group(1)
+        col = _find_column(schema, token)
         if col:
             return ParseResult(
                 intent="deterministic",
@@ -142,5 +169,7 @@ def parse_simple(question: str, schema: SchemaSnapshot) -> "ParseResult":
                 ),
                 notes=f"totals by {col}"
             )
+        else:
+            return ParseResult(plan=None, intent="unknown", notes="unknown column for totals", suggestions=_suggest_columns(schema, token))
 
     return ParseResult(plan=None, intent="unknown", notes="no simple parse")

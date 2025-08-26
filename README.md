@@ -41,11 +41,32 @@ Correlations / Clusters:
 .venv/bin/python -m agent.cli.main --query "show pipeline correlation"
 .venv/bin/python -m agent.cli.main --query "cluster pipelines monthly k=6 scale=minmax"
 ```
+Trends / Seasonality / Top Trending:
+```
+.venv/bin/python -m agent.cli.main --query "trends by month"
+.venv/bin/python -m agent.cli.main --query "seasonality by pipeline_name"
+.venv/bin/python -m agent.cli.main --query "top trending by pipeline_name top 5 min-months=6"
+```
+Anomalies (IQR / Sudden Shifts):
+```
+.venv/bin/python -m agent.cli.main --query "find IQR anomalies k=1.5"
+.venv/bin/python -m agent.cli.main --query "detect sudden shifts window=7 sigma=3.0"
+```
+Spearman Correlations with p-values:
+```
+.venv/bin/python -m agent.cli.main --query "show pipeline correlation method=spearman pvalue=true"
+```
 Anomalies vs category baseline (flags locations that deviate vs their category):
 ```
 .venv/bin/python -m agent.cli.main --query "identify anomalous points that behave outside of their point categories in 2024 state TX deliveries z=3.5 min_days=5"
 ```
 Each answer prints a concise `Answer:` line first, then shows executed SQL (if applicable), prints a result table and latency in seconds, and saves artifacts under `./runs/<timestamp>/`.
+
+Artifacts now include parameters and pseudo-steps for analytics (e.g., clustering k/scale/algorithm/seed; correlation method/p-values), and a note on missing-value handling (COALESCE(...,0) for totals).
+
+## Hypothesis generation
+
+If `OPENAI_API_KEY` is set, the agent will propose 1–3 cautious, evidence-linked hypotheses after the result summary, each with caveats and a suggested follow-up. Set `OPENAI_MODEL` to override the default.
 
 ## Features
 - DuckDB over Parquet with projection pruning and predicate pushdown

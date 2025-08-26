@@ -101,7 +101,7 @@ def main(argv=None):
     from agent.planner.rule_planner import parse_simple
     from agent.exec.sql_builder import build_sql
     from agent.report.reporter import Reporter
-    from agent.tools.analytics import correlation_pipelines, cluster_pipelines_monthly, anomalies_vs_category, anomalies_iqr, sudden_shifts, trends_summary
+    from agent.tools.analytics import correlation_pipelines, cluster_pipelines_monthly, anomalies_vs_category, anomalies_iqr, sudden_shifts, trends_summary, seasonality_summary, top_trending_segments
     from agent.planner.llm_explain import summarize_answer, generate_hypotheses
     from agent.utils.profile_cache import ProfileCache
     from agent.utils.caveats import build_caveats
@@ -178,6 +178,57 @@ def main(argv=None):
             return 0
 
         # Additional analytics
+        if "seasonality" in ql or "seasonal" in ql:
+            group_col = None
+            m = re.search(r"by\s+([a-zA-Z0-9_]+)", ql)
+            if m:
+                group_col = m.group(1)
+            t0 = _time.time()
+            result = seasonality_summary(executor, parquet_path, group_col=group_col)
+            latency = _time.time() - t0
+            concise = make_concise_answer(result, {"analytics": "trends"})
+            (console.print(concise) if console else print(concise))
+            _render_result(console, f"seasonality summary" + (f" by {group_col}" if group_col else ""), result)
+            if args.save_run:
+                reporter = Reporter()
+                expl = summarize_answer(question, f"--analytics: seasonality_summary (group_col={group_col})", result, args.model) or ""
+                caveats = build_caveats(result, {"analytics": "trends", "profile": prof})
+                missing_note = "Missing-value handling: COALESCE(scheduled_quantity,0) for totals."
+                summary = (f"Question: {question}\n\n" + (expl + "\n\n" if expl else "") + f"Notes: seasonality (group_col={group_col})\n- {missing_note}\n" + ("\n".join(f"- {c}" for c in caveats)))
+                plan = {"intent": "analytic", "notes": "seasonality", "params": {"group_col": group_col}, "pseudo": "avg monthly total by month-of-year (optionally per segment)"}
+                run_dir = reporter.save_artifacts(plan, None, result, summary, latency_sec=latency)
+                (console.print(Panel.fit(f"Artifacts saved to {run_dir} (Latency: {latency:.2f}s)")) if console else print(f"Artifacts saved to {run_dir} (Latency: {latency:.2f}s)"))
+            return 0
+
+        if "top trending" in ql or "top trend" in ql:
+            group_col = "pipeline_name"
+            n = 10
+            min_months = 6
+            m = re.search(r"by\s+([a-zA-Z0-9_]+)", ql)
+            if m:
+                group_col = m.group(1)
+            m = re.search(r"top\s+(\d+)", ql)
+            if m:
+                n = parse_int(m.group(1), 10)
+            m = re.search(r"min[_-]?months\s*=\s*(\d+)", ql)
+            if m:
+                min_months = parse_int(m.group(1), 6)
+            t0 = _time.time()
+            result = top_trending_segments(executor, parquet_path, group_col=group_col, n=n, min_months=min_months)
+            latency = _time.time() - t0
+            concise = make_concise_answer(result, {"analytics": "trends"})
+            (console.print(concise) if console else print(concise))
+            _render_result(console, f"top trending {group_col} (top={n}, min_months={min_months})", result)
+            if args.save_run:
+                reporter = Reporter()
+                expl = summarize_answer(question, f"--analytics: top_trending_segments (group_col={group_col}, top={n}, min_months={min_months})", result, args.model) or ""
+                caveats = build_caveats(result, {"analytics": "trends", "profile": prof})
+                missing_note = "Missing-value handling: COALESCE(scheduled_quantity,0) for totals."
+                summary = (f"Question: {question}\n\n" + (expl + "\n\n" if expl else "") + f"Notes: top trending segments (group_col={group_col}, top={n}, min_months={min_months})\n- {missing_note}\n" + ("\n".join(f"- {c}" for c in caveats)))
+                plan = {"intent": "analytic", "notes": "top_trending", "params": {"group_col": group_col, "top": n, "min_months": min_months}, "pseudo": "monthly totals pivot -> MoM growth -> rank latest growth with min months"}
+                run_dir = reporter.save_artifacts(plan, None, result, summary, latency_sec=latency)
+                (console.print(Panel.fit(f"Artifacts saved to {run_dir} (Latency: {latency:.2f}s)")) if console else print(f"Artifacts saved to {run_dir} (Latency: {latency:.2f}s)"))
+            return 0
         if "iqr" in ql and ("anomal" in ql or "outlier" in ql):
             k = 1.5
             m = re.search(r"k\s*=\s*([0-9]+(?:\.[0-9]+)?)", ql)
@@ -415,7 +466,9 @@ def main(argv=None):
                         reporter.save_artifacts(plan, None, result, summary, latency_sec=latency)
                     return 0
             # If still unknown, inform user
-            msg = "I can: anomalies vs category, correlations, clustering, preview, sums, distincts, group-bys, and top-N by a column."
+            msg = "I can: anomalies vs category, correlations, clustering, trends, seasonality, top trending, preview, sums, distincts, group-bys, and top-N by a column."
+            if parsed.suggestions:
+                msg += "\nDid you mean one of these columns? " + ", ".join(parsed.suggestions[:5])
             (console.print(Panel.fit(msg)) if console else print(msg))
             return 1
 

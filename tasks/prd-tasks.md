@@ -50,7 +50,7 @@ Subtasks:
 - [x] 5a.1 Expand rule-based planner to understand trend queries (e.g., "trend by month for X", "MoM growth for Y in 2024", rolling averages) and emit appropriate SQL/aggregation plans. (added 'trends' special)
 - [x] 5a.2 Enhance LLM planner to parameterize analytics tools (trend window sizes, anomaly thresholds, k, scaling) and return structured directives. (extended tools JSON)
 - [x] 5a.3 Implement hypothesis generation: produce 1–3 plausible causes tied to observed evidence with explicit caveats and assumptions; ensure outputs never contradict executed results. (generate_hypotheses)
-- [ ] 5a.4 Improve error handling and ambiguity resolution in planner (column disambiguation prompts, suggestions when fields are missing).
+- [x] 5a.4 Improve error handling and ambiguity resolution in planner (column disambiguation prompts, suggestions when fields are missing). (suggestions via fuzzy matching; surfaced in CLI)
 
 ## 6) Evidence reporter
 Subtasks:
@@ -106,8 +106,8 @@ Subtasks:
 
 ## 10a) README & examples (enhanced)
 Subtasks:
-- [ ] 10a.1 Add end-to-end examples for trends (MoM/YoY), anomalies (IQR and sudden shifts), correlations (Spearman with p-values), and clustering (MiniBatch with silhouette).
-- [ ] 10a.2 Document hypothesis generation examples with caveats and linkage to evidence.
+- [x] 10a.1 Add end-to-end examples for trends (MoM/YoY), anomalies (IQR and sudden shifts), correlations (Spearman with p-values), and clustering (MiniBatch with silhouette).
+- [x] 10a.2 Document hypothesis generation examples with caveats and linkage to evidence.
 
 
 ## Dependencies and Parallelization Plan (Swarming)

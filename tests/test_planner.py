@@ -21,3 +21,10 @@ def test_sum_by_month():
     q = "sum scheduled_quantity by month in 2024"
     res = parse_simple(q, schema)
     assert res.plan is not None
+
+
+def test_unknown_column_suggestions():
+    q = "top 5 pipline_name by scheduled_quantity"  # misspelled
+    res = parse_simple(q, schema)
+    assert res.intent == 'unknown'
+    assert res.suggestions and any('pipeline_name' in s for s in res.suggestions)
