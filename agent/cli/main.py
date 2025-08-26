@@ -105,6 +105,7 @@ def main(argv=None):
     from agent.planner.llm_explain import summarize_answer
     from agent.utils.profile_cache import ProfileCache
     from agent.utils.caveats import build_caveats
+    from agent.utils.answers import make_concise_answer
 
     profile_cache = ProfileCache()
 
@@ -125,6 +126,8 @@ def main(argv=None):
             t0 = _time.time()
             result = correlation_pipelines(executor, parquet_path)
             latency = _time.time() - t0
+            concise = make_concise_answer(result, {"analytics": "correlation"})
+            (console.print(concise) if console else print(concise))
             _render_result(console, "pipeline correlation (top pairs)", result)
             if args.save_run:
                 reporter = Reporter()
@@ -146,6 +149,8 @@ def main(argv=None):
             t0 = _time.time()
             result = cluster_pipelines_monthly(executor, parquet_path, k=k, scaling=scaling)
             latency = _time.time() - t0
+            concise = make_concise_answer(result, {"analytics": "clustering"})
+            (console.print(concise) if console else print(concise))
             _render_result(console, f"pipeline clusters (k={k}, scaling={scaling})", result)
             if args.save_run:
                 reporter = Reporter()
@@ -175,6 +180,8 @@ def main(argv=None):
             t0 = _time.time()
             result = anomalies_vs_category(executor, parquet_path, z_threshold=z, min_anomaly_days=min_days, year=year, state=state, rec_del_sign=rds)
             latency = _time.time() - t0
+            concise = make_concise_answer(result, {"analytics": "anomalies_vs_category"})
+            (console.print(concise) if console else print(concise))
             _render_result(console, "anomalous locations vs category baseline", result)
             if args.save_run:
                 reporter = Reporter()
@@ -199,6 +206,8 @@ def main(argv=None):
         t0 = _time.time()
         result = executor.query(sql, params)
         latency = _time.time() - t0
+        concise = make_concise_answer(result, {"intent": parsed.intent})
+        (console.print(concise) if console else print(concise))
         _render_result(console, parsed.notes, result)
         if args.save_run:
             reporter = Reporter()

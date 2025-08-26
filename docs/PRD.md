@@ -5,7 +5,7 @@ Owner: SynMax
 References: `docs/project-requirements.md`
 
 ## 1) Overview
-Build a CLI-first, chat-based Python agent that analyzes a large local Parquet dataset and answers analyst questions ranging from deterministic metrics (counts, aggregates) to analytical insights (trends, anomalies, correlations, clustering) and plausible-cause hypotheses. Responses must include concise conclusions plus transparent evidence: selected columns, filters, executed SQL/code, and latency in seconds.
+Build a CLI-first, chat-based Python agent that analyzes a large local Parquet dataset and answers analyst questions ranging from deterministic metrics (counts, aggregates) to analytical insights (trends, anomalies, correlations, clustering) and plausible-cause hypotheses. Responses must include a concise one-line answer first, then transparent evidence: selected columns, filters, executed SQL/code, and latency in seconds.
 
 - Language: Python 3.10+
 - Interface: CLI only (`synmax-agent`)
@@ -22,7 +22,7 @@ Build a CLI-first, chat-based Python agent that analyzes a large local Parquet d
 ### In-scope (v1)
 - Single Parquet file analytics (no joins), schema inference, missing-value handling.
 - NL→plan→execute loop with LLM explanation and tool calls.
-- Deterministic and analytic queries with evidence, latency, and caveats.
+- Deterministic and analytic queries with concise answer, evidence, latency, and caveats.
 - Artifact saving: plan, executed SQL, selected columns/filters, summary results, latency. Retain latest N runs.
 
 ### Out-of-scope (v1)
@@ -58,7 +58,7 @@ Build a CLI-first, chat-based Python agent that analyzes a large local Parquet d
 6. CLI UX
    - Command: `synmax-agent`
    - Non-interactive `--query` and interactive chat loop.
-   - Show executed SQL and tabular results; print latency.
+   - Print concise answer first, then show executed SQL and tabular results; print latency.
 
 ## 5) Non-functional requirements
 - Accuracy first; summaries cannot contradict executed results.
@@ -68,13 +68,13 @@ Build a CLI-first, chat-based Python agent that analyzes a large local Parquet d
 
 ## 6) Architecture
 - CLI Orchestrator, Planner (rule-based + LLM explanation), Tools (profile/run_sql/stats/anomaly/corr/cluster), Executor (DuckDB), Reporter (answer+evidence+latency), Utils (schema cache, privacy helpers).
-- Data flow: NL query → plan/execute → results → LLM explanation → reporter.
+- Data flow: NL query → plan/execute → results → concise answer → LLM explanation → reporter.
 
 ## 7) LLM configuration (OpenAI)
 - Env: `OPENAI_API_KEY` (optional; enables explanations and future planning). `OPENAI_MODEL` optional.
 
 ## 8) Acceptance criteria
-- CLI runs queries; prints results, executed SQL, and latency.
+- CLI prints a concise answer first for every query; then shows results, executed SQL, and latency.
 - Analytics deliver insights with caveats and evidence.
 - Artifacts saved per run; only latest N retained by env `RUNS_RETENTION`.
 - README documents install, dataset, env, examples, assumptions.
@@ -87,5 +87,5 @@ Build a CLI-first, chat-based Python agent that analyzes a large local Parquet d
 ## 10) Milestones
 - M1: CLI skeleton, dataset path handling, basic profiling.
 - M2: Deterministic planner + DuckDB execution + evidence output + latency.
-- M3: Analytics (trends, anomalies, correlations, clustering) + LLM explanations.
+- M3: Analytics (trends, anomalies, correlations, clustering) + concise answers + LLM explanations.
 - M4: README/Examples and performance tuning.
