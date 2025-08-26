@@ -17,7 +17,10 @@ pip install pandas
 - Or pass `--path /absolute/path/to/file.parquet`.
 
 ## Environment variables
-- `OPENAI_API_KEY` (optional): enables LLM explanations (“talk to the data”).
+- `OPENAI_API_KEY` (optional):
+  - Used to: (1) generate concise explanations of results, and (2) plan complex queries when the rule-based planner cannot map a request (OpenAI planner picks an analytics tool + params).
+  - Not used for: deterministic SQL generation or local analytics execution, which always run locally in DuckDB/Sklearn.
+  - Disable by omitting the key (features gracefully fallback). Control preview sharing with `ALLOW_LLM_RAW_PREVIEW` (off by default).
 - `OPENAI_MODEL` (optional): default `gpt-4o-mini`.
 - `RUNS_RETENTION` (optional): number of run folders to keep (default 50).
 - `ALLOW_LLM_RAW_PREVIEW` (optional): set to `1` to allow first-rows preview to be sent to LLM; otherwise metadata-only.
@@ -42,11 +45,12 @@ Anomalies vs category baseline (flags locations that deviate vs their category):
 ```
 .venv/bin/python -m agent.cli.main --query "identify anomalous points that behave outside of their point categories in 2024 state TX deliveries z=3.5 min_days=5"
 ```
-Each answer shows executed SQL (if applicable), prints a result table, latency in seconds, and saves artifacts under `./runs/<timestamp>/`.
+Each answer prints a concise `Answer:` line first, then shows executed SQL (if applicable), prints a result table and latency in seconds, and saves artifacts under `./runs/<timestamp>/`.
 
 ## Features
 - DuckDB over Parquet with projection pruning and predicate pushdown
 - Rule-based planner for common questions; SQL builder with validation
+- OpenAI-backed planner for complex queries (tool selection) when available
 - Analytics: trends, z-score anomalies, correlation of pipeline daily totals, k-means clustering of monthly profiles (scaling options, silhouette)
 - Category-baseline anomaly detection (per-day category mean/std) with filters/thresholds
 - LLM explanations (metadata-only by default; optional row preview)

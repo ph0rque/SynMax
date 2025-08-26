@@ -106,6 +106,7 @@ def main(argv=None):
     from agent.utils.profile_cache import ProfileCache
     from agent.utils.caveats import build_caveats
     from agent.utils.answers import make_concise_answer
+    from agent.planner.openai_planner import choose_analytic_tool
 
     profile_cache = ProfileCache()
 
@@ -192,11 +193,46 @@ def main(argv=None):
                 (console.print(Panel.fit(f"Artifacts saved to {run_dir} (Latency: {latency:.2f}s)")) if console else print(f"Artifacts saved to {run_dir} (Latency: {latency:.2f}s)"))
             return 0
 
-        # Deterministic rule-based
+        # If rule parser failed, try OpenAI planner for complex analytic mapping
         if parsed.plan is None:
+            cols = [c.name for c in schema.columns]
+            directive = choose_analytic_tool(question, cols, args.model)
+            if directive and directive.get('tool'):
+                tool = directive['tool']
+                params = directive.get('params', {})
+                # Dispatch to tool
+                if tool == 'correlation':
+                    t0 = _time.time()
+                    result = correlation_pipelines(executor, parquet_path)
+                    latency = _time.time() - t0
+                    concise = make_concise_answer(result, {"analytics": "correlation"})
+                    (console.print(concise) if console else print(concise))
+                    _render_result(console, "pipeline correlation (top pairs)", result)
+                    return 0
+                if tool == 'clustering':
+                    k = int(params.get('k', 5))
+                    scaling = params.get('scaling', 'standard')
+                    t0 = _time.time()
+                    result = cluster_pipelines_monthly(executor, parquet_path, k=k, scaling=scaling)
+                    latency = _time.time() - t0
+                    concise = make_concise_answer(result, {"analytics": "clustering"})
+                    (console.print(concise) if console else print(concise))
+                    _render_result(console, f"pipeline clusters (k={k}, scaling={scaling})", result)
+                    return 0
+                if tool == 'anomalies_vs_category':
+                    t0 = _time.time()
+                    result = anomalies_vs_category(executor, parquet_path, **{k: v for k, v in params.items() if k in {'z_threshold','min_anomaly_days','year','state','rec_del_sign'}})
+                    latency = _time.time() - t0
+                    concise = make_concise_answer(result, {"analytics": "anomalies_vs_category"})
+                    (console.print(concise) if console else print(concise))
+                    _render_result(console, "anomalous locations vs category baseline", result)
+                    return 0
+            # If still unknown, inform user
             msg = "I can: anomalies vs category, correlations, clustering, preview, sums, distincts, group-bys, and top-N by a column."
             (console.print(Panel.fit(msg)) if console else print(msg))
             return 1
+
+        # Deterministic rule-based
         sql, params = build_sql(parquet_path, parsed.plan, schema)
         if console:
             console.print(Panel.fit("Executed SQL:"))
