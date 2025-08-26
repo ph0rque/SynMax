@@ -103,6 +103,10 @@ def main(argv=None):
     from agent.report.reporter import Reporter
     from agent.tools.analytics import correlation_pipelines, cluster_pipelines_monthly, anomalies_vs_category
     from agent.planner.llm_explain import summarize_answer
+    from agent.utils.profile_cache import ProfileCache
+    from agent.utils.caveats import build_caveats
+
+    profile_cache = ProfileCache()
 
     def parse_int(s: str, default: int) -> int:
         try:
@@ -114,6 +118,7 @@ def main(argv=None):
         executor = DuckDBExecutor()
         schema = SchemaCache().get_or_load(executor, parquet_path)
         ql = question.lower()
+        prof = profile_cache.get_or_profile(executor, parquet_path, sample_rows=10000)
 
         # Analytics triggers
         if "correlation" in ql or "correlat" in ql:
@@ -124,12 +129,12 @@ def main(argv=None):
             if args.save_run:
                 reporter = Reporter()
                 expl = summarize_answer(question, "--analytics: correlation_pipelines", result, args.model) or ""
-                summary = (f"Question: {question}\n\n" + (expl + "\n\n" if expl else "") + "Notes: correlation of daily totals across top pipelines")
+                caveats = build_caveats(result, {"analytics": "correlation", "profile": prof})
+                summary = (f"Question: {question}\n\n" + (expl + "\n\n" if expl else "") + "Notes: correlation of daily totals across top pipelines\n" + ("\n".join(f"- {c}" for c in caveats)))
                 run_dir = reporter.save_artifacts({"intent": "analytic", "notes": "correlation"}, None, result, summary, latency_sec=latency)
                 (console.print(Panel.fit(f"Artifacts saved to {run_dir} (Latency: {latency:.2f}s)")) if console else print(f"Artifacts saved to {run_dir} (Latency: {latency:.2f}s)"))
             return 0
         if "cluster" in ql or "clustering" in ql:
-            # parse k and scaling from text (e.g., "k=6", "scale=minmax")
             k = 5
             scaling = "standard"
             m = re.search(r"k\s*=\s*(\d+)", ql)
@@ -145,17 +150,16 @@ def main(argv=None):
             if args.save_run:
                 reporter = Reporter()
                 expl = summarize_answer(question, f"--analytics: cluster_pipelines_monthly (k={k}, scaling={scaling})", result, args.model) or ""
-                summary = (f"Question: {question}\n\n" + (expl + "\n\n" if expl else "") + f"Notes: k-means clustering (k={k}, scaling={scaling})")
+                caveats = build_caveats(result, {"analytics": "clustering", "profile": prof})
+                summary = (f"Question: {question}\n\n" + (expl + "\n\n" if expl else "") + f"Notes: k-means clustering (k={k}, scaling={scaling})\n" + ("\n".join(f"- {c}" for c in caveats)))
                 run_dir = reporter.save_artifacts({"intent": "analytic", "notes": "clustering"}, None, result, summary, latency_sec=latency)
                 (console.print(Panel.fit(f"Artifacts saved to {run_dir} (Latency: {latency:.2f}s)")) if console else print(f"Artifacts saved to {run_dir} (Latency: {latency:.2f}s)"))
             return 0
 
         parsed = parse_simple(question, schema)
-        # Anomalies vs category directive
         if parsed.special and parsed.special.get("type") == "anomalies_vs_category":
             z = float(parsed.special.get("z", 3.0))
             min_days = int(parsed.special.get("min_days", 3))
-            # parse optional state/year/receipts/deliveries
             year = None
             m = re.search(r"\b(20\d{2})\b", ql)
             if m:
@@ -175,7 +179,8 @@ def main(argv=None):
             if args.save_run:
                 reporter = Reporter()
                 expl = summarize_answer(question, f"--analytics: anomalies_vs_category (z>={z}, min_days={min_days})", result, args.model) or ""
-                summary = (f"Question: {question}\n\n" + (expl + "\n\n" if expl else "") + f"Notes: category baseline z-threshold {z}, min days {min_days}")
+                caveats = build_caveats(result, {"analytics": "anomalies_vs_category", "profile": prof})
+                summary = (f"Question: {question}\n\n" + (expl + "\n\n" if expl else "") + f"Notes: category baseline z-threshold {z}, min days {min_days}\n" + ("\n".join(f"- {c}" for c in caveats)))
                 run_dir = reporter.save_artifacts({"intent": "analytic", "notes": "anomalies_vs_category"}, None, result, summary, latency_sec=latency)
                 (console.print(Panel.fit(f"Artifacts saved to {run_dir} (Latency: {latency:.2f}s)")) if console else print(f"Artifacts saved to {run_dir} (Latency: {latency:.2f}s)"))
             return 0
@@ -208,7 +213,8 @@ def main(argv=None):
                 },
             }
             expl = summarize_answer(question, sql, result, args.model) or ""
-            summary = f"Question: {question}\n\n" + (expl + "\n\n" if expl else "") + f"Notes: {parsed.notes}"
+            caveats = build_caveats(result, {"profile": prof})
+            summary = f"Question: {question}\n\n" + (expl + "\n\n" if expl else "") + f"Notes: {parsed.notes}\n" + ("\n".join(f"- {c}" for c in caveats))
             run_dir = reporter.save_artifacts(plan_dict, sql, result, markdown_summary=summary, latency_sec=latency)
             if console:
                 console.print(Panel.fit(f"Artifacts saved to {run_dir} (Latency: {latency:.2f}s)"))
