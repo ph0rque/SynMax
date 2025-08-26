@@ -101,8 +101,14 @@ def main(argv=None):
     from agent.planner.rule_planner import parse_simple
     from agent.exec.sql_builder import build_sql
     from agent.report.reporter import Reporter
-    from agent.tools.analytics import correlation_pipelines, cluster_pipelines_monthly
+    from agent.tools.analytics import correlation_pipelines, cluster_pipelines_monthly, anomalies_vs_category
     from agent.planner.llm_explain import summarize_answer
+
+    def parse_int(s: str, default: int) -> int:
+        try:
+            return int(s)
+        except Exception:
+            return default
 
     def run_once(question: str):
         executor = DuckDBExecutor()
@@ -128,10 +134,7 @@ def main(argv=None):
             scaling = "standard"
             m = re.search(r"k\s*=\s*(\d+)", ql)
             if m:
-                try:
-                    k = int(m.group(1))
-                except Exception:
-                    k = 5
+                k = parse_int(m.group(1), 5)
             m = re.search(r"scale\s*=\s*(standard|minmax|none)", ql)
             if m:
                 scaling = m.group(1)
@@ -147,10 +150,39 @@ def main(argv=None):
                 (console.print(Panel.fit(f"Artifacts saved to {run_dir} (Latency: {latency:.2f}s)")) if console else print(f"Artifacts saved to {run_dir} (Latency: {latency:.2f}s)"))
             return 0
 
-        # Deterministic rule-based
         parsed = parse_simple(question, schema)
+        # Anomalies vs category directive
+        if parsed.special and parsed.special.get("type") == "anomalies_vs_category":
+            z = float(parsed.special.get("z", 3.0))
+            min_days = int(parsed.special.get("min_days", 3))
+            # parse optional state/year/receipts/deliveries
+            year = None
+            m = re.search(r"\b(20\d{2})\b", ql)
+            if m:
+                year = parse_int(m.group(1), None)  # type: ignore[arg-type]
+            state = None
+            m = re.search(r"\bstate\s+([A-Z]{2})\b|\bin\s+([A-Z]{2})\b", ql)
+            state = m.group(1) if m and m.group(1) else (m.group(2) if m else None)
+            rds = None
+            if "receipts" in ql:
+                rds = -1
+            if "deliveries" in ql:
+                rds = 1
+            t0 = _time.time()
+            result = anomalies_vs_category(executor, parquet_path, z_threshold=z, min_anomaly_days=min_days, year=year, state=state, rec_del_sign=rds)
+            latency = _time.time() - t0
+            _render_result(console, "anomalous locations vs category baseline", result)
+            if args.save_run:
+                reporter = Reporter()
+                expl = summarize_answer(question, f"--analytics: anomalies_vs_category (z>={z}, min_days={min_days})", result, args.model) or ""
+                summary = (f"Question: {question}\n\n" + (expl + "\n\n" if expl else "") + f"Notes: category baseline z-threshold {z}, min days {min_days}")
+                run_dir = reporter.save_artifacts({"intent": "analytic", "notes": "anomalies_vs_category"}, None, result, summary, latency_sec=latency)
+                (console.print(Panel.fit(f"Artifacts saved to {run_dir} (Latency: {latency:.2f}s)")) if console else print(f"Artifacts saved to {run_dir} (Latency: {latency:.2f}s)"))
+            return 0
+
+        # Deterministic rule-based
         if parsed.plan is None:
-            msg = "I can: correlations, clustering, preview, sums, distincts, group-bys, and top-N by a column."
+            msg = "I can: anomalies vs category, correlations, clustering, preview, sums, distincts, group-bys, and top-N by a column."
             (console.print(Panel.fit(msg)) if console else print(msg))
             return 1
         sql, params = build_sql(parquet_path, parsed.plan, schema)

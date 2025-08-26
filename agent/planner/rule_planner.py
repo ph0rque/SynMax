@@ -13,6 +13,7 @@ class ParseResult:
     plan: Optional[QueryPlan]
     intent: str  # 'deterministic' | 'analytic' | 'unknown'
     notes: str = ""
+    special: Optional[Dict[str, Any]] = None  # extra directives for analytics
 
 
 def _find_column(schema: SchemaSnapshot, name: str) -> Optional[str]:
@@ -50,6 +51,16 @@ def _parse_filters(ql: str, schema: SchemaSnapshot) -> List[Filter]:
 def parse_simple(question: str, schema: SchemaSnapshot) -> "ParseResult":
     q = question.strip()
     ql = q.lower()
+
+    # Anomalies vs category intent
+    if "anomal" in ql and ("category" in ql or "categories" in ql):
+        # extract z-threshold and min days if present
+        m = re.search(r"z\s*=\s*([0-9]+(?:\.[0-9]+)?)", ql)
+        z = float(m.group(1)) if m else 3.0
+        m = re.search(r"min[_\s-]*days\s*=\s*(\d+)", ql)
+        min_days = int(m.group(1)) if m else 3
+        # optional state/year/receipts-deliveries handled later in CLI
+        return ParseResult(plan=None, intent="analytic", notes="anomalies vs category", special={"type": "anomalies_vs_category", "z": z, "min_days": min_days})
 
     # COUNT rows
     if re.search(r"\bcount\b", ql) and not re.search(r"distinct", ql):
@@ -106,7 +117,7 @@ def parse_simple(question: str, schema: SchemaSnapshot) -> "ParseResult":
                     order_by=[("total_scheduled_quantity", "DESC")],
                     limit=n,
                 ),
-                notes=f"top {n} {col} by total scheduled_quantity"
+                notes=f"top {n} {col} by total scheduled_quantity",
             )
 
     # GROUP BY <col> totals
