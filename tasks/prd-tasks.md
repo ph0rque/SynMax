@@ -22,7 +22,7 @@ Subtasks:
 - [x] 3.2 Implement projection pruning (select needed columns only).
 - [x] 3.3 Implement predicate pushdown for filters.
 - [x] 3.4 Add timeout/row-limit guardrails. (defaults via SQL LIMIT; placeholder timeout)
-- [ ] 3.5 Unit tests on sample Parquet.
+- [x] 3.5 Unit tests on sample Parquet.
 
 ## 4) Data profiling tool
 Subtasks:
@@ -30,7 +30,7 @@ Subtasks:
 - [x] 4.2 Null rate and basic descriptive stats.
 - [x] 4.3 Distinct counts (sampled for high-cardinality) with warnings.
 - [x] 4.4 `head`/preview with row limit.
-- [ ] 4.5 Cache profiling results for planning.
+- [x] 4.5 Cache profiling results for planning.
 
 ## 5) Deterministic planner (NL → SQL)
 Subtasks:
@@ -54,7 +54,7 @@ Subtasks:
 - [x] 7.4 Clustering: k-means/mini-batch; scaling and silhouette sanity.
   - [x] 7.4.1 Implement k-means over monthly pipeline profiles
   - [x] 7.4.2 Add scaling options and silhouette reporting
-- [ ] 7.5 Caveat framework: uncertainty and limitations in outputs.
+- [x] 7.5 Caveat framework: uncertainty and limitations in outputs.
 
 ## 8) Privacy guardrails
 Subtasks:
