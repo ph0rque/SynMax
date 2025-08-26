@@ -146,17 +146,19 @@ def cluster_pipelines_monthly(
     tbl = executor.query(sql, params)
     df = tbl.to_pandas()
     if df.empty:
-        return pa.table({"pipeline_name": [], "cluster": []})
+        return pa.table({"pipeline_name": [], "cluster": [], "k": [], "scaling": [], "silhouette": []})
     pivot = df.pivot(index="pipeline_name", columns="month", values="total_qty").fillna(0)
     scaler = StandardScaler(with_mean=True, with_std=True) if scaling == "standard" else (MinMaxScaler() if scaling == "minmax" else None)
     X = scaler.fit_transform(pivot.values) if scaler is not None else pivot.values
-    km = KMeans(n_clusters=k, n_init=10, random_state=42)
+    n_samples = X.shape[0]
+    k_eff = max(1, min(k, n_samples))
+    km = KMeans(n_clusters=k_eff, n_init=10, random_state=42)
     labels = km.fit_predict(X)
     sil = None
     try:
-        if len(set(labels)) > 1 and X.shape[0] > k:
+        if len(set(labels)) > 1 and X.shape[0] > k_eff and k_eff > 1:
             sil = float(silhouette_score(X, labels))
     except Exception:
         sil = None
-    out = pd.DataFrame({"pipeline_name": pivot.index.tolist(), "cluster": labels.tolist(), "k": [k]*len(labels), "scaling": [scaling]*len(labels), "silhouette": [sil]*len(labels)})
+    out = pd.DataFrame({"pipeline_name": pivot.index.tolist(), "cluster": labels.tolist(), "k": [k_eff]*len(labels), "scaling": [scaling]*len(labels), "silhouette": [sil]*len(labels)})
     return pa.Table.from_pandas(out, preserve_index=False)
