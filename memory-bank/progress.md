@@ -8,20 +8,17 @@
   - CLI skeleton with dataset autodiscovery and loop.
   - DuckDB executor (`agent/exec/duck.py`).
   - Data profiling tool (`agent/tools/profile.py`).
-  - Planner stub (`agent/planner/openai_planner.py`).
+  - Planner with tool routing and trend special (`agent/planner/openai_planner.py`, `agent/planner/rule_planner.py`).
   - Reporter/artifacts writer (`agent/report/reporter.py`).
 - Tasks tracked in `tasks/prd-tasks.md` with dependencies plan.
 - Requirements and run script in place (`requirements.txt`, `scripts/run.sh`).
 
 ## What's left to build
-- Deterministic planner integration and SQL templates with guardrails.
-- Evidence output wiring end-to-end in CLI (include executed SQL).
-- Analytics modules: trends, anomalies, correlations, clustering.
-- Privacy guardrails (schema/aggregates to LLM only) with logging.
-- README examples and polish.
+- README examples and polish (seasonality, top trending, IQR, sudden shifts, Spearman+p-values, MiniBatch clustering, hypothesis gen).
+- Minor planner ambiguity handling and suggestions.
 
 ## Current status
-- Scaffold complete; moving to planner+executor integration and analytics implementation.
+- Analytics gap closure implemented; tests green (18 passed). Preparing documentation/examples.
 
 ## Known issues/risks
 - Performance on very wide tables; ensure projection of only needed columns.

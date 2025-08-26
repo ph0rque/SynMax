@@ -1,19 +1,15 @@
 # Active Context
 
 ## Current focus
-- Integrate planner and executor for deterministic queries with evidence.
-- Implement analytics modules (trends, anomalies, correlations, clustering).
+- Analytics gap-closure completed: trends (MoM/YoY, moving averages), seasonality, top trending; anomalies (IQR and sudden shifts); correlations (Pearson/Spearman with optional p-values); clustering (KMeans/MiniBatch with scaling, seed). CLI routes and planner directives added. Artifacts now include params, pseudo-code, missing-value handling notes, and optional hypotheses.
 - Enforce privacy and save artifacts per run.
 
 Decision: Use DuckDB as the primary engine for Parquet queries; optionally use Polars for specific analytics where beneficial. Always project needed columns and push filters down. Adopt argparse-based CLI with Rich for console output.
 
 ## Next steps
-1) Wire CLI to planner, profiler, and executor for end-to-end deterministic queries.
-2) Implement SQL template library and parameter binding with validation against schema cache.
-3) Integrate reporter to save plan, SQL, and results under `./runs/<timestamp>/`.
-4) Build analytics tools: trends, anomalies (z-score/IQR), correlations, clustering.
-5) Add privacy guardrails (schema/aggregates only to LLM) and compliance logging.
-6) Write README quick start and example sessions.
+1) README: add end-to-end examples for seasonality, top trending, IQR, sudden shifts, Spearman+p-values, MiniBatch clusters; document hypothesis generation.
+2) Minor planner improvements for disambiguation and suggestions.
+3) Performance tuning on large datasets; validate USE_POLARS gains.
 
 ## Open questions
 - Do we need join support across multiple Parquet files for v1? (Assume no.)

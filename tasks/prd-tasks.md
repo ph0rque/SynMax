@@ -35,7 +35,7 @@ Subtasks:
 ## 4a) Data handling improvements
 Subtasks:
 - [x] 4a.1 Define and implement missing-value handling per metric (drop vs zero-fill for non-negative sums vs forward-fill for time series); add disclosure of strategy to evidence. (COALESCE for totals; disclosure in artifacts)
-- [ ] 4a.2 Optional Polars integration for advanced stats on aggregates/subsets where faster; feature-flag this path.
+- [x] 4a.2 Optional Polars integration for advanced stats on aggregates/subsets where faster; feature-flag this path. (USE_POLARS gating for rolling MAs in trends)
 
 ## 5) Deterministic planner (NL → SQL)
 Subtasks:
