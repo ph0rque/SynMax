@@ -101,8 +101,8 @@ def main(argv=None):
     from agent.planner.rule_planner import parse_simple
     from agent.exec.sql_builder import build_sql
     from agent.report.reporter import Reporter
-    from agent.tools.analytics import correlation_pipelines, cluster_pipelines_monthly, anomalies_vs_category
-    from agent.planner.llm_explain import summarize_answer
+    from agent.tools.analytics import correlation_pipelines, cluster_pipelines_monthly, anomalies_vs_category, anomalies_iqr, sudden_shifts, trends_summary
+    from agent.planner.llm_explain import summarize_answer, generate_hypotheses
     from agent.utils.profile_cache import ProfileCache
     from agent.utils.caveats import build_caveats
     from agent.utils.answers import make_concise_answer
@@ -141,24 +141,100 @@ def main(argv=None):
         if "cluster" in ql or "clustering" in ql:
             k = 5
             scaling = "standard"
+            algorithm = "kmeans"
+            seed = 42
             m = re.search(r"k\s*=\s*(\d+)", ql)
             if m:
                 k = parse_int(m.group(1), 5)
             m = re.search(r"scale\s*=\s*(standard|minmax|none)", ql)
             if m:
                 scaling = m.group(1)
+            m = re.search(r"algo(rithm)?\s*=\s*(kmeans|minibatch)", ql)
+            if m:
+                algorithm = m.group(2)
+            m = re.search(r"seed\s*=\s*(\d+)", ql)
+            if m:
+                seed = parse_int(m.group(1), 42)
             t0 = _time.time()
-            result = cluster_pipelines_monthly(executor, parquet_path, k=k, scaling=scaling)
+            result = cluster_pipelines_monthly(executor, parquet_path, k=k, scaling=scaling, algorithm=algorithm, seed=seed)
             latency = _time.time() - t0
             concise = make_concise_answer(result, {"analytics": "clustering"})
             (console.print(concise) if console else print(concise))
-            _render_result(console, f"pipeline clusters (k={k}, scaling={scaling})", result)
+            _render_result(console, f"pipeline clusters (k={k}, scaling={scaling}, algorithm={algorithm}, seed={seed})", result)
             if args.save_run:
                 reporter = Reporter()
-                expl = summarize_answer(question, f"--analytics: cluster_pipelines_monthly (k={k}, scaling={scaling})", result, args.model) or ""
-                caveats = build_caveats(result, {"analytics": "clustering", "profile": prof})
-                summary = (f"Question: {question}\n\n" + (expl + "\n\n" if expl else "") + f"Notes: k-means clustering (k={k}, scaling={scaling})\n" + ("\n".join(f"- {c}" for c in caveats)))
+                expl = summarize_answer(question, f"--analytics: cluster_pipelines_monthly (k={k}, scaling={scaling}, algorithm={algorithm}, seed={seed})", result, args.model) or ""
+                caveats = build_caveats(result, {"analytics": "clustering", "profile": prof, "algorithm": algorithm})
+                summary = (f"Question: {question}\n\n" + (expl + "\n\n" if expl else "") + f"Notes: clustering (k={k}, scaling={scaling}, algorithm={algorithm}, seed={seed})\n" + ("\n".join(f"- {c}" for c in caveats)))
                 run_dir = reporter.save_artifacts({"intent": "analytic", "notes": "clustering"}, None, result, summary, latency_sec=latency)
+                (console.print(Panel.fit(f"Artifacts saved to {run_dir} (Latency: {latency:.2f}s)")) if console else print(f"Artifacts saved to {run_dir} (Latency: {latency:.2f}s)"))
+            return 0
+
+        # Additional analytics
+        if "iqr" in ql and ("anomal" in ql or "outlier" in ql):
+            k = 1.5
+            m = re.search(r"k\s*=\s*([0-9]+(?:\.[0-9]+)?)", ql)
+            if m:
+                try:
+                    k = float(m.group(1))
+                except Exception:
+                    k = 1.5
+            t0 = _time.time()
+            result = anomalies_iqr(executor, parquet_path, k=k)
+            latency = _time.time() - t0
+            concise = make_concise_answer(result, {"analytics": "anomalies_iqr"})
+            (console.print(concise) if console else print(concise))
+            _render_result(console, f"daily outliers by IQR (k={k})", result)
+            if args.save_run:
+                reporter = Reporter()
+                expl = summarize_answer(question, f"--analytics: anomalies_iqr (k={k})", result, args.model) or ""
+                caveats = build_caveats(result, {"analytics": "anomalies_iqr", "profile": prof})
+                summary = (f"Question: {question}\n\n" + (expl + "\n\n" if expl else "") + f"Notes: IQR outliers (k={k})\n" + ("\n".join(f"- {c}" for c in caveats)))
+                run_dir = reporter.save_artifacts({"intent": "analytic", "notes": "anomalies_iqr"}, None, result, summary, latency_sec=latency)
+                (console.print(Panel.fit(f"Artifacts saved to {run_dir} (Latency: {latency:.2f}s)")) if console else print(f"Artifacts saved to {run_dir} (Latency: {latency:.2f}s)"))
+            return 0
+
+        if "sudden" in ql or "shift" in ql:
+            window = 7
+            sigma = 3.0
+            m = re.search(r"window\s*=\s*(\d+)", ql)
+            if m:
+                window = parse_int(m.group(1), 7)
+            m = re.search(r"sigma\s*=\s*([0-9]+(?:\.[0-9]+)?)", ql)
+            if m:
+                try:
+                    sigma = float(m.group(1))
+                except Exception:
+                    sigma = 3.0
+            t0 = _time.time()
+            result = sudden_shifts(executor, parquet_path, window=window, sigma=sigma)
+            latency = _time.time() - t0
+            concise = make_concise_answer(result, {"analytics": "sudden_shifts"})
+            (console.print(concise) if console else print(concise))
+            _render_result(console, f"sudden shifts (window={window}, sigma={sigma})", result)
+            if args.save_run:
+                reporter = Reporter()
+                expl = summarize_answer(question, f"--analytics: sudden_shifts (window={window}, sigma={sigma})", result, args.model) or ""
+                caveats = build_caveats(result, {"analytics": "sudden_shifts", "profile": prof})
+                summary = (f"Question: {question}\n\n" + (expl + "\n\n" if expl else "") + f"Notes: sudden shifts (window={window}, sigma={sigma})\n" + ("\n".join(f"- {c}" for c in caveats)))
+                run_dir = reporter.save_artifacts({"intent": "analytic", "notes": "sudden_shifts"}, None, result, summary, latency_sec=latency)
+                (console.print(Panel.fit(f"Artifacts saved to {run_dir} (Latency: {latency:.2f}s)")) if console else print(f"Artifacts saved to {run_dir} (Latency: {latency:.2f}s)"))
+            return 0
+
+        if "trend" in ql or "trends" in ql:
+            by = "month" if "month" in ql else ("day" if "day" in ql else "month")
+            t0 = _time.time()
+            result = trends_summary(executor, parquet_path, by=by)
+            latency = _time.time() - t0
+            concise = make_concise_answer(result, {"analytics": "trends"})
+            (console.print(concise) if console else print(concise))
+            _render_result(console, f"trends summary by {by}", result)
+            if args.save_run:
+                reporter = Reporter()
+                expl = summarize_answer(question, f"--analytics: trends_summary (by={by})", result, args.model) or ""
+                caveats = build_caveats(result, {"analytics": "trends", "profile": prof})
+                summary = (f"Question: {question}\n\n" + (expl + "\n\n" if expl else "") + f"Notes: trends summary (by={by})\n" + ("\n".join(f"- {c}" for c in caveats)))
+                run_dir = reporter.save_artifacts({"intent": "analytic", "notes": "trends"}, None, result, summary, latency_sec=latency)
                 (console.print(Panel.fit(f"Artifacts saved to {run_dir} (Latency: {latency:.2f}s)")) if console else print(f"Artifacts saved to {run_dir} (Latency: {latency:.2f}s)"))
             return 0
 
@@ -203,7 +279,9 @@ def main(argv=None):
                 # Dispatch to tool
                 if tool == 'correlation':
                     t0 = _time.time()
-                    result = correlation_pipelines(executor, parquet_path)
+                    method = params.get('method', 'pearson')
+                    include_pvalue = bool(params.get('include_pvalue', False))
+                    result = correlation_pipelines(executor, parquet_path, method=method, include_pvalue=include_pvalue)
                     latency = _time.time() - t0
                     concise = make_concise_answer(result, {"analytics": "correlation"})
                     (console.print(concise) if console else print(concise))
@@ -212,12 +290,14 @@ def main(argv=None):
                 if tool == 'clustering':
                     k = int(params.get('k', 5))
                     scaling = params.get('scaling', 'standard')
+                    algorithm = params.get('algorithm', 'kmeans')
+                    seed = int(params.get('seed', 42))
                     t0 = _time.time()
-                    result = cluster_pipelines_monthly(executor, parquet_path, k=k, scaling=scaling)
+                    result = cluster_pipelines_monthly(executor, parquet_path, k=k, scaling=scaling, algorithm=algorithm, seed=seed)
                     latency = _time.time() - t0
                     concise = make_concise_answer(result, {"analytics": "clustering"})
                     (console.print(concise) if console else print(concise))
-                    _render_result(console, f"pipeline clusters (k={k}, scaling={scaling})", result)
+                    _render_result(console, f"pipeline clusters (k={k}, scaling={scaling}, algorithm={algorithm}, seed={seed})", result)
                     return 0
                 if tool == 'anomalies_vs_category':
                     t0 = _time.time()
@@ -226,6 +306,34 @@ def main(argv=None):
                     concise = make_concise_answer(result, {"analytics": "anomalies_vs_category"})
                     (console.print(concise) if console else print(concise))
                     _render_result(console, "anomalous locations vs category baseline", result)
+                    return 0
+                if tool == 'anomalies_iqr':
+                    k = float(params.get('k', 1.5))
+                    t0 = _time.time()
+                    result = anomalies_iqr(executor, parquet_path, k=k)
+                    latency = _time.time() - t0
+                    concise = make_concise_answer(result, {"analytics": "anomalies_iqr"})
+                    (console.print(concise) if console else print(concise))
+                    _render_result(console, "daily outliers by IQR", result)
+                    return 0
+                if tool == 'sudden_shifts':
+                    window = int(params.get('window', 7))
+                    sigma = float(params.get('sigma', 3.0))
+                    t0 = _time.time()
+                    result = sudden_shifts(executor, parquet_path, window=window, sigma=sigma)
+                    latency = _time.time() - t0
+                    concise = make_concise_answer(result, {"analytics": "sudden_shifts"})
+                    (console.print(concise) if console else print(concise))
+                    _render_result(console, f"sudden shifts (window={window}, sigma={sigma})", result)
+                    return 0
+                if tool == 'trends':
+                    by = params.get('by', 'month')
+                    t0 = _time.time()
+                    result = trends_summary(executor, parquet_path, by=by)
+                    latency = _time.time() - t0
+                    concise = make_concise_answer(result, {"analytics": "trends"})
+                    (console.print(concise) if console else print(concise))
+                    _render_result(console, f"trends summary by {by}", result)
                     return 0
             # If still unknown, inform user
             msg = "I can: anomalies vs category, correlations, clustering, preview, sums, distincts, group-bys, and top-N by a column."
@@ -259,7 +367,9 @@ def main(argv=None):
             }
             expl = summarize_answer(question, sql, result, args.model) or ""
             caveats = build_caveats(result, {"profile": prof})
-            summary = f"Question: {question}\n\n" + (expl + "\n\n" if expl else "") + f"Notes: {parsed.notes}\n" + ("\n".join(f"- {c}" for c in caveats))
+            # Optional hypothesis generation
+            hypo = generate_hypotheses(question, expl or parsed.notes, args.model) or ""
+            summary = f"Question: {question}\n\n" + (expl + "\n\n" if expl else "") + ("Hypotheses:\n" + hypo + "\n\n" if hypo else "") + f"Notes: {parsed.notes}\n" + ("\n".join(f"- {c}" for c in caveats))
             run_dir = reporter.save_artifacts(plan_dict, sql, result, markdown_summary=summary, latency_sec=latency)
             if console:
                 console.print(Panel.fit(f"Artifacts saved to {run_dir} (Latency: {latency:.2f}s)"))

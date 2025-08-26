@@ -28,9 +28,12 @@ def choose_analytic_tool(question: str, schema_columns: list[str], model: Option
     )
     tools_desc = (
         "Allowed tools:\n"
-        "- correlation: compute correlations across pipeline daily totals. params: {}\n"
-        "- clustering: cluster pipelines by monthly totals. params: {k:int (1-20), scaling:'standard'|'minmax'|'none'}\n"
-        "- anomalies_vs_category: flag loc_name anomalies vs category baselines. params: {z:float (1-10), min_days:int (1-365), year:int?, state:str?, rec_del_sign:int?}"
+        "- correlation: compute correlations across pipeline daily totals. params: {method:'pearson'|'spearman', include_pvalue:bool}\n"
+        "- clustering: cluster pipelines by monthly totals. params: {k:int (1-20), scaling:'standard'|'minmax'|'none', algorithm:'kmeans'|'minibatch', seed:int}\n"
+        "- anomalies_vs_category: flag loc_name anomalies vs category baselines. params: {z:float (1-10), min_days:int (1-365), year:int?, state:str?, rec_del_sign:int?}\n"
+        "- anomalies_iqr: flag daily total outliers via IQR. params: {k:float (0.5-5), limit:int}\n"
+        "- sudden_shifts: detect rolling deviations. params: {window:int (3-60), sigma:float (1-10), limit:int}\n"
+        "- trends: summarize trends by 'month' or 'day' with moving averages. params: {by:'month'|'day', window_ma:int[]?, yoy:bool?}"
     )
     user = (
         f"Schema columns: {', '.join(schema_columns)}\n\n"

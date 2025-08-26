@@ -81,3 +81,37 @@ def summarize_answer(question: str, sql: str, result: Any, model: Optional[str] 
         return (resp.choices[0].message.content or "").strip()
     except Exception:
         return None
+
+
+def generate_hypotheses(question: str, evidence_summary: str, model: Optional[str] = None) -> Optional[str]:
+    """
+    Produce 1–3 plausible, non-assertive causal hypotheses tied to the observed evidence.
+    Never contradict the evidence; include explicit caveats and suggest simple follow-ups.
+    Returns a short markdown list.
+    """
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key or OpenAI is None:
+        return None
+    client = OpenAI(api_key=api_key)
+    model_name = model or os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+    system = (
+        "You propose cautious, evidence-linked hypotheses. Use hedging language (may, could). "
+        "Provide 1–3 bullets: hypothesis + why it could explain the pattern + caveat + simple next check."
+    )
+    user = (
+        f"Question:\n{question}\n\n"
+        f"Observed evidence summary (concise):\n{evidence_summary[:1500]}\n"
+    )
+    try:
+        resp = client.chat.completions.create(
+            model=model_name,
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            temperature=0.3,
+            max_tokens=300,
+        )
+        return (resp.choices[0].message.content or "").strip()
+    except Exception:
+        return None
