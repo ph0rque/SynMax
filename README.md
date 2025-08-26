@@ -1,6 +1,6 @@
 # SynMax Data Agent
 
-CLI-based, chat-style agent to analyze local Parquet data with deterministic queries and analytics (trends, anomalies, correlations, clustering). Evidence-first: shows executed SQL and saves artifacts.
+CLI-based, chat-style agent to analyze local Parquet data with deterministic queries and analytics (trends, anomalies, correlations, clustering). Evidence-first: shows executed SQL and saves artifacts with latency and optional LLM explanations.
 
 ## Installation
 - Python 3.11+ recommended
@@ -17,10 +17,12 @@ pip install pandas
 - Or pass `--path /absolute/path/to/file.parquet`.
 
 ## Environment variables
-- OpenAI (optional for future LLM planner expansion): set `OPENAI_API_KEY`.
-  - Create a `.env` file at project root (see `.env.sample`) and add:
-    `OPENAI_API_KEY=sk-your-key-here`
-  - The CLI features implemented so far do not require the key, but providing it prepares for LLM-powered planning.
+- `OPENAI_API_KEY` (optional): enables LLM explanations (“talk to the data”).
+- `OPENAI_MODEL` (optional): default `gpt-4o-mini`.
+- `RUNS_RETENTION` (optional): number of run folders to keep (default 50).
+- `ALLOW_LLM_RAW_PREVIEW` (optional): set to `1` to allow first-rows preview to be sent to LLM; otherwise metadata-only.
+
+Copy `.env.sample` to `.env` and edit as needed.
 
 ## Quick start
 Preview and ask a one-shot question:
@@ -34,22 +36,33 @@ Monthly totals in 2024:
 Correlations / Clusters:
 ```
 .venv/bin/python -m agent.cli.main --query "show pipeline correlation"
-.venv/bin/python -m agent.cli.main --query "cluster pipelines monthly"
+.venv/bin/python -m agent.cli.main --query "cluster pipelines monthly k=6 scale=minmax"
 ```
+Anomalies vs category baseline (flags locations that deviate vs their category):
+```
+.venv/bin/python -m agent.cli.main --query "identify anomalous points that behave outside of their point categories in 2024 state TX deliveries z=3.5 min_days=5"
+```
+Each answer shows executed SQL (if applicable), prints a result table, latency in seconds, and saves artifacts under `./runs/<timestamp>/`.
 
 ## Features
 - DuckDB over Parquet with projection pruning and predicate pushdown
 - Rule-based planner for common questions; SQL builder with validation
-- Analytics: trends, z-score anomalies, correlation of pipeline daily totals, k-means clustering of monthly profiles
-- Artifacts saved under `./runs/<timestamp>/` (plan.json, query.sql, results.json, summary.md)
+- Analytics: trends, z-score anomalies, correlation of pipeline daily totals, k-means clustering of monthly profiles (scaling options, silhouette)
+- Category-baseline anomaly detection (per-day category mean/std) with filters/thresholds
+- LLM explanations (metadata-only by default; optional row preview)
+- Artifacts saved under `./runs/<timestamp>/` (plan.json, query.sql, results.json, summary.md) and retention via `RUNS_RETENTION`
 
 ## Privacy
-- No raw rows sent to LLMs (OpenAI for future planner expansion). Only schema and aggregates allowed.
+- Experimental project; avoid sharing the dataset externally.
+- No raw rows sent to LLM unless `ALLOW_LLM_RAW_PREVIEW=1`.
 
-## Limitations
-- Single Parquet file v1 (no joins)
-- Analytics use heuristics (simple z-score, Pearson corr, k-means); interpret with caveats
-- Lat/lon missingness may limit geospatial insights
+## Testing
+- Create venv and install requirements, then run:
+```
+source .venv/bin/activate
+pytest -q
+```
+- Tests include unit tests (SQL builder, planner, analytics) and CLI integration tests using a synthetic Parquet fixture under `tests/fixtures/`.
 
 ## Development
 - Interactive mode: run without --query and ask questions
