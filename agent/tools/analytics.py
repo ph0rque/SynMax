@@ -162,6 +162,7 @@ def correlation_pipelines(
     top_pairs: int = 20,
     method: str = "pearson",
     include_pvalue: bool = False,
+    min_obs: int = 10,
 ) -> pa.Table:
     pipelines = _top_pipelines(executor, parquet_path, top_k_pipelines)
     if not pipelines:
@@ -183,6 +184,12 @@ def correlation_pipelines(
             cols["pvalue"] = []
         return pa.table(cols)
     pivot = df.pivot(index="day", columns="pipeline_name", values="total_qty").fillna(0)
+    if pivot.shape[0] < int(min_obs):
+        cols: Dict[str, List[Any]] = {"a": [], "b": [], "corr": []}
+        if include_pvalue:
+            cols["pvalue"] = []
+        cols["n_obs"] = []
+        return pa.table(cols)
     if method.lower() == "pearson":
         corr = pivot.corr(method="pearson")
         corr.index.name = "a"
@@ -199,6 +206,7 @@ def correlation_pipelines(
                 pairs_df["pvalue"] = pvals
             except Exception:
                 pairs_df["pvalue"] = [None] * len(pairs_df)
+        pairs_df["n_obs"] = pivot.shape[0]
         pairs_df = pairs_df.head(top_pairs)
         return pa.Table.from_pandas(pairs_df, preserve_index=False)
     else:
@@ -214,6 +222,7 @@ def correlation_pipelines(
             corr_pairs = corr.where(~mask).stack().reset_index(name="corr").sort_values("corr", ascending=False).head(top_pairs)
             if include_pvalue:
                 corr_pairs["pvalue"] = None
+            corr_pairs["n_obs"] = pivot.shape[0]
             return pa.Table.from_pandas(corr_pairs, preserve_index=False)
         # Compute pairwise with p-values
         pairs: List[Tuple[str, str, float, float]] = []
@@ -227,6 +236,7 @@ def correlation_pipelines(
         out = out.sort_values("corr", ascending=False).head(top_pairs)
         if not include_pvalue:
             out = out.drop(columns=["pvalue"])
+        out["n_obs"] = pivot.shape[0]
         return pa.Table.from_pandas(out, preserve_index=False)
 
 
@@ -344,6 +354,59 @@ def trends_summary(
                 out_df[f"ma_{w}"] = out_df["total_qty"].rolling(window=w, min_periods=max(2, w // 2)).mean()
         return pa.Table.from_pandas(out_df, preserve_index=False)
 
+
+def cluster_time_series_shapes(
+    executor: DuckDBExecutor,
+    parquet_path: str,
+    entity_col: str = "pipeline_name",
+    freq: str = "month",
+    k: int = 5,
+    algorithm: str = "kmeans",
+    seed: int = 42,
+) -> pa.Table:
+    """
+    Cluster entities by the shape of their time series (normalized per series).
+    freq: 'month' or 'day' (time aggregation level)
+    """
+    qcol = escape_ident(entity_col)
+    time_expr = "date_trunc('month', eff_gas_day)::DATE" if freq == "month" else "eff_gas_day::DATE"
+    sql = (
+        f"SELECT {time_expr} AS t, {qcol} AS key, SUM(COALESCE(scheduled_quantity, 0)) AS total "
+        f"FROM read_parquet(?) GROUP BY 1,2 ORDER BY 1"
+    )
+    tbl = executor.query(sql, [parquet_path])
+    df = tbl.to_pandas()
+    if df.empty:
+        return pa.table({"key": [], "cluster": [], "k": [], "algorithm": [], "seed": [], "silhouette": []})
+    pivot = df.pivot(index="key", columns="t", values="total").fillna(0)
+    X = pivot.values
+    # Row-wise standardization (shape-based)
+    means = X.mean(axis=1, keepdims=True)
+    stds = X.std(axis=1, keepdims=True)
+    stds[stds == 0] = 1.0
+    Xz = (X - means) / stds
+    n_samples = Xz.shape[0]
+    k_eff = max(1, min(k, n_samples))
+    if algorithm == "minibatch":
+        km = MiniBatchKMeans(n_clusters=k_eff, n_init=10, random_state=seed, batch_size=min(1024, max(10, n_samples)))
+    else:
+        km = KMeans(n_clusters=k_eff, n_init=10, random_state=seed)
+    labels = km.fit_predict(Xz)
+    sil = None
+    try:
+        if len(set(labels)) > 1 and Xz.shape[0] > k_eff and k_eff > 1:
+            sil = float(silhouette_score(Xz, labels))
+    except Exception:
+        sil = None
+    out = pd.DataFrame({
+        "key": pivot.index.tolist(),
+        "cluster": labels.tolist(),
+        "k": [k_eff] * len(labels),
+        "algorithm": [algorithm] * len(labels),
+        "seed": [seed] * len(labels),
+        "silhouette": [sil] * len(labels),
+    })
+    return pa.Table.from_pandas(out, preserve_index=False)
 
 def top_trending_segments(
     executor: DuckDBExecutor,

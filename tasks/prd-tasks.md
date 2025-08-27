@@ -71,6 +71,7 @@ Subtasks:
 - [x] 6a.2 Save concise code snippet or pseudo-SQL for analytics steps in artifacts (e.g., clustering, correlation tests) to ensure reproducibility. (added 'pseudo')
 - [x] 6a.3 Ensure latency, sampling, and missing-value handling notes are included in `summary.md`. (added missing-value note)
 - [ ] 6a.4 Add minimum observation thresholds and significance reporting where applicable (e.g., correlation pairs), and document multiple-comparisons caveats.
+ - [x] 6a.4 Add minimum observation thresholds and significance reporting where applicable (e.g., correlation pairs), and document multiple-comparisons caveats.
 
 ## 7) Analytics tools
 Subtasks:
@@ -89,6 +90,7 @@ Subtasks:
 - [x] 7a.3 Extend Correlations to include Spearman rank and significance (p-values) with minimum observation thresholds and multiple-comparisons warning. (method param + p-values)
 - [x] 7a.4 Add MiniBatch KMeans option and persist clustering parameters (k, scaling, random seed) and silhouette scores to artifacts. (algorithm, seed)
 - [ ] 7a.5 Explore temporal clustering (time series shape-based clustering) and multivariate correlation screening as advanced (bonus) features.
+ - [x] 7a.5 Explore temporal clustering (time series shape-based clustering) and multivariate correlation screening as advanced (bonus) features.
 
 ## 8) Privacy guardrails
 Subtasks:
@@ -118,6 +120,7 @@ Subtasks:
 - [x] 10a.1 Add end-to-end examples for trends (MoM/YoY), anomalies (IQR and sudden shifts), correlations (Spearman with p-values), and clustering (MiniBatch with silhouette).
 - [x] 10a.2 Document hypothesis generation examples with caveats and linkage to evidence.
 - [ ] 10a.3 Add docs on viewing transparency panels (Heuristic/LLM) and `SHOW_IT` usage (link to `docs/heuristics.md`).
+ - [x] 10a.3 Add docs on viewing transparency panels (Heuristic/LLM) and `SHOW_IT` usage (link to `docs/heuristics.md`).
 
 
 ## Dependencies and Parallelization Plan (Swarming)
