@@ -132,13 +132,25 @@ def main(argv=None):
             latency = _time.time() - t0
             concise = make_concise_answer(result, {"analytics": "correlation"})
             (console.print(concise) if console else print(concise))
+            # Heuristic + LLM info
+            htxt = f"Heuristic: analytics trigger 'correlation' (method={method}, include_pvalue={include_p})"
+            llm_txt = f"LLM(explain): model={args.model}, enabled={'YES' if os.environ.get('OPENAI_API_KEY') else 'NO'}"
+            (console.print(Panel.fit(htxt)) if console else print(htxt))
+            (console.print(Panel.fit(llm_txt)) if console else print(llm_txt))
             _render_result(console, "pipeline correlation (top pairs)", result)
             if args.save_run:
                 reporter = Reporter()
                 expl = summarize_answer(question, f"--analytics: correlation_pipelines (method={method}, include_pvalue={include_p})", result, args.model) or ""
+                hypo = generate_hypotheses(question, expl or f"correlation (method={method})", args.model) or ""
                 caveats = build_caveats(result, {"analytics": "correlation", "profile": prof, "method": method, "include_pvalue": include_p})
                 missing_note = "Missing-value handling: COALESCE(scheduled_quantity,0) for totals."
-                summary = (f"Question: {question}\n\n" + (expl + "\n\n" if expl else "") + f"Notes: correlation (method={method}, include_pvalue={include_p})\n- {missing_note}\n" + ("\n".join(f"- {c}" for c in caveats)))
+                summary = (
+                    f"Question: {question}\n\n"
+                    + (expl + "\n\n" if expl else "")
+                    + ("Hypotheses:\n" + hypo + "\n\n" if hypo else "")
+                    + f"Notes: correlation (method={method}, include_pvalue={include_p})\n- {missing_note}\n"
+                    + ("\n".join(f"- {c}" for c in caveats))
+                )
                 plan = {"intent": "analytic", "notes": "correlation", "params": {"method": method, "include_pvalue": include_p}, "pseudo": "pivot daily totals by pipeline, compute pairwise correlations"}
                 run_dir = reporter.save_artifacts(plan, None, result, summary, latency_sec=latency)
                 (console.print(Panel.fit(f"Artifacts saved to {run_dir} (Latency: {latency:.2f}s)")) if console else print(f"Artifacts saved to {run_dir} (Latency: {latency:.2f}s)"))
@@ -165,13 +177,24 @@ def main(argv=None):
             latency = _time.time() - t0
             concise = make_concise_answer(result, {"analytics": "clustering"})
             (console.print(concise) if console else print(concise))
+            htxt = f"Heuristic: analytics trigger 'clustering' (k={k}, scaling={scaling}, algorithm={algorithm}, seed={seed})"
+            llm_txt = f"LLM(explain): model={args.model}, enabled={'YES' if os.environ.get('OPENAI_API_KEY') else 'NO'}"
+            (console.print(Panel.fit(htxt)) if console else print(htxt))
+            (console.print(Panel.fit(llm_txt)) if console else print(llm_txt))
             _render_result(console, f"pipeline clusters (k={k}, scaling={scaling}, algorithm={algorithm}, seed={seed})", result)
             if args.save_run:
                 reporter = Reporter()
                 expl = summarize_answer(question, f"--analytics: cluster_pipelines_monthly (k={k}, scaling={scaling}, algorithm={algorithm}, seed={seed})", result, args.model) or ""
+                hypo = generate_hypotheses(question, expl or f"clustering (k={k}, scaling={scaling})", args.model) or ""
                 caveats = build_caveats(result, {"analytics": "clustering", "profile": prof, "algorithm": algorithm})
                 missing_note = "Missing-value handling: COALESCE(scheduled_quantity,0) for totals."
-                summary = (f"Question: {question}\n\n" + (expl + "\n\n" if expl else "") + f"Notes: clustering (k={k}, scaling={scaling}, algorithm={algorithm}, seed={seed})\n- {missing_note}\n" + ("\n".join(f"- {c}" for c in caveats)))
+                summary = (
+                    f"Question: {question}\n\n"
+                    + (expl + "\n\n" if expl else "")
+                    + ("Hypotheses:\n" + hypo + "\n\n" if hypo else "")
+                    + f"Notes: clustering (k={k}, scaling={scaling}, algorithm={algorithm}, seed={seed})\n- {missing_note}\n"
+                    + ("\n".join(f"- {c}" for c in caveats))
+                )
                 plan = {"intent": "analytic", "notes": "clustering", "params": {"k": k, "scaling": scaling, "algorithm": algorithm, "seed": seed}, "pseudo": "monthly totals by pipeline -> scale -> (MiniBatch)KMeans -> labels & silhouette"}
                 run_dir = reporter.save_artifacts(plan, None, result, summary, latency_sec=latency)
                 (console.print(Panel.fit(f"Artifacts saved to {run_dir} (Latency: {latency:.2f}s)")) if console else print(f"Artifacts saved to {run_dir} (Latency: {latency:.2f}s)"))
@@ -188,13 +211,24 @@ def main(argv=None):
             latency = _time.time() - t0
             concise = make_concise_answer(result, {"analytics": "trends"})
             (console.print(concise) if console else print(concise))
+            htxt = f"Heuristic: analytics trigger 'seasonality' (group_col={group_col})"
+            llm_txt = f"LLM(explain): model={args.model}, enabled={'YES' if os.environ.get('OPENAI_API_KEY') else 'NO'}"
+            (console.print(Panel.fit(htxt)) if console else print(htxt))
+            (console.print(Panel.fit(llm_txt)) if console else print(llm_txt))
             _render_result(console, f"seasonality summary" + (f" by {group_col}" if group_col else ""), result)
             if args.save_run:
                 reporter = Reporter()
                 expl = summarize_answer(question, f"--analytics: seasonality_summary (group_col={group_col})", result, args.model) or ""
+                hypo = generate_hypotheses(question, expl or f"seasonality (group_col={group_col})", args.model) or ""
                 caveats = build_caveats(result, {"analytics": "trends", "profile": prof})
                 missing_note = "Missing-value handling: COALESCE(scheduled_quantity,0) for totals."
-                summary = (f"Question: {question}\n\n" + (expl + "\n\n" if expl else "") + f"Notes: seasonality (group_col={group_col})\n- {missing_note}\n" + ("\n".join(f"- {c}" for c in caveats)))
+                summary = (
+                    f"Question: {question}\n\n"
+                    + (expl + "\n\n" if expl else "")
+                    + ("Hypotheses:\n" + hypo + "\n\n" if hypo else "")
+                    + f"Notes: seasonality (group_col={group_col})\n- {missing_note}\n"
+                    + ("\n".join(f"- {c}" for c in caveats))
+                )
                 plan = {"intent": "analytic", "notes": "seasonality", "params": {"group_col": group_col}, "pseudo": "avg monthly total by month-of-year (optionally per segment)"}
                 run_dir = reporter.save_artifacts(plan, None, result, summary, latency_sec=latency)
                 (console.print(Panel.fit(f"Artifacts saved to {run_dir} (Latency: {latency:.2f}s)")) if console else print(f"Artifacts saved to {run_dir} (Latency: {latency:.2f}s)"))
@@ -218,13 +252,24 @@ def main(argv=None):
             latency = _time.time() - t0
             concise = make_concise_answer(result, {"analytics": "trends"})
             (console.print(concise) if console else print(concise))
+            htxt = f"Heuristic: analytics trigger 'top_trending' (group_col={group_col}, top={n}, min_months={min_months})"
+            llm_txt = f"LLM(explain): model={args.model}, enabled={'YES' if os.environ.get('OPENAI_API_KEY') else 'NO'}"
+            (console.print(Panel.fit(htxt)) if console else print(htxt))
+            (console.print(Panel.fit(llm_txt)) if console else print(llm_txt))
             _render_result(console, f"top trending {group_col} (top={n}, min_months={min_months})", result)
             if args.save_run:
                 reporter = Reporter()
                 expl = summarize_answer(question, f"--analytics: top_trending_segments (group_col={group_col}, top={n}, min_months={min_months})", result, args.model) or ""
+                hypo = generate_hypotheses(question, expl or f"top_trending (group_col={group_col})", args.model) or ""
                 caveats = build_caveats(result, {"analytics": "trends", "profile": prof})
                 missing_note = "Missing-value handling: COALESCE(scheduled_quantity,0) for totals."
-                summary = (f"Question: {question}\n\n" + (expl + "\n\n" if expl else "") + f"Notes: top trending segments (group_col={group_col}, top={n}, min_months={min_months})\n- {missing_note}\n" + ("\n".join(f"- {c}" for c in caveats)))
+                summary = (
+                    f"Question: {question}\n\n"
+                    + (expl + "\n\n" if expl else "")
+                    + ("Hypotheses:\n" + hypo + "\n\n" if hypo else "")
+                    + f"Notes: top trending segments (group_col={group_col}, top={n}, min_months={min_months})\n- {missing_note}\n"
+                    + ("\n".join(f"- {c}" for c in caveats))
+                )
                 plan = {"intent": "analytic", "notes": "top_trending", "params": {"group_col": group_col, "top": n, "min_months": min_months}, "pseudo": "monthly totals pivot -> MoM growth -> rank latest growth with min months"}
                 run_dir = reporter.save_artifacts(plan, None, result, summary, latency_sec=latency)
                 (console.print(Panel.fit(f"Artifacts saved to {run_dir} (Latency: {latency:.2f}s)")) if console else print(f"Artifacts saved to {run_dir} (Latency: {latency:.2f}s)"))
@@ -242,13 +287,24 @@ def main(argv=None):
             latency = _time.time() - t0
             concise = make_concise_answer(result, {"analytics": "anomalies_iqr"})
             (console.print(concise) if console else print(concise))
+            htxt = f"Heuristic: analytics trigger 'anomalies_iqr' (k={k})"
+            llm_txt = f"LLM(explain): model={args.model}, enabled={'YES' if os.environ.get('OPENAI_API_KEY') else 'NO'}"
+            (console.print(Panel.fit(htxt)) if console else print(htxt))
+            (console.print(Panel.fit(llm_txt)) if console else print(llm_txt))
             _render_result(console, f"daily outliers by IQR (k={k})", result)
             if args.save_run:
                 reporter = Reporter()
                 expl = summarize_answer(question, f"--analytics: anomalies_iqr (k={k})", result, args.model) or ""
+                hypo = generate_hypotheses(question, expl or f"anomalies_iqr (k={k})", args.model) or ""
                 caveats = build_caveats(result, {"analytics": "anomalies_iqr", "profile": prof})
                 missing_note = "Missing-value handling: COALESCE(scheduled_quantity,0) for totals."
-                summary = (f"Question: {question}\n\n" + (expl + "\n\n" if expl else "") + f"Notes: IQR outliers (k={k})\n- {missing_note}\n" + ("\n".join(f"- {c}" for c in caveats)))
+                summary = (
+                    f"Question: {question}\n\n"
+                    + (expl + "\n\n" if expl else "")
+                    + ("Hypotheses:\n" + hypo + "\n\n" if hypo else "")
+                    + f"Notes: IQR outliers (k={k})\n- {missing_note}\n"
+                    + ("\n".join(f"- {c}" for c in caveats))
+                )
                 plan = {"intent": "analytic", "notes": "anomalies_iqr", "params": {"k": k}, "pseudo": "daily totals -> IQR fences -> flag days outside [Q1-k*IQR, Q3+k*IQR]"}
                 run_dir = reporter.save_artifacts(plan, None, result, summary, latency_sec=latency)
                 (console.print(Panel.fit(f"Artifacts saved to {run_dir} (Latency: {latency:.2f}s)")) if console else print(f"Artifacts saved to {run_dir} (Latency: {latency:.2f}s)"))
@@ -271,13 +327,24 @@ def main(argv=None):
             latency = _time.time() - t0
             concise = make_concise_answer(result, {"analytics": "sudden_shifts"})
             (console.print(concise) if console else print(concise))
+            htxt = f"Heuristic: analytics trigger 'sudden_shifts' (window={window}, sigma={sigma})"
+            llm_txt = f"LLM(explain): model={args.model}, enabled={'YES' if os.environ.get('OPENAI_API_KEY') else 'NO'}"
+            (console.print(Panel.fit(htxt)) if console else print(htxt))
+            (console.print(Panel.fit(llm_txt)) if console else print(llm_txt))
             _render_result(console, f"sudden shifts (window={window}, sigma={sigma})", result)
             if args.save_run:
                 reporter = Reporter()
                 expl = summarize_answer(question, f"--analytics: sudden_shifts (window={window}, sigma={sigma})", result, args.model) or ""
+                hypo = generate_hypotheses(question, expl or f"sudden_shifts (window={window}, sigma={sigma})", args.model) or ""
                 caveats = build_caveats(result, {"analytics": "sudden_shifts", "profile": prof})
                 missing_note = "Missing-value handling: COALESCE(scheduled_quantity,0) for totals."
-                summary = (f"Question: {question}\n\n" + (expl + "\n\n" if expl else "") + f"Notes: sudden shifts (window={window}, sigma={sigma})\n- {missing_note}\n" + ("\n".join(f"- {c}" for c in caveats)))
+                summary = (
+                    f"Question: {question}\n\n"
+                    + (expl + "\n\n" if expl else "")
+                    + ("Hypotheses:\n" + hypo + "\n\n" if hypo else "")
+                    + f"Notes: sudden shifts (window={window}, sigma={sigma})\n- {missing_note}\n"
+                    + ("\n".join(f"- {c}" for c in caveats))
+                )
                 plan = {"intent": "analytic", "notes": "sudden_shifts", "params": {"window": window, "sigma": sigma}, "pseudo": "daily totals -> rolling mean/std -> |x-mean|/std >= sigma"}
                 run_dir = reporter.save_artifacts(plan, None, result, summary, latency_sec=latency)
                 (console.print(Panel.fit(f"Artifacts saved to {run_dir} (Latency: {latency:.2f}s)")) if console else print(f"Artifacts saved to {run_dir} (Latency: {latency:.2f}s)"))
@@ -290,12 +357,23 @@ def main(argv=None):
             latency = _time.time() - t0
             concise = make_concise_answer(result, {"analytics": "trends"})
             (console.print(concise) if console else print(concise))
+            htxt = f"Heuristic: analytics trigger 'trends' (by={by})"
+            llm_txt = f"LLM(explain): model={args.model}, enabled={'YES' if os.environ.get('OPENAI_API_KEY') else 'NO'}"
+            (console.print(Panel.fit(htxt)) if console else print(htxt))
+            (console.print(Panel.fit(llm_txt)) if console else print(llm_txt))
             _render_result(console, f"trends summary by {by}", result)
             if args.save_run:
                 reporter = Reporter()
                 expl = summarize_answer(question, f"--analytics: trends_summary (by={by})", result, args.model) or ""
+                hypo = generate_hypotheses(question, expl or f"trends (by={by})", args.model) or ""
                 caveats = build_caveats(result, {"analytics": "trends", "profile": prof})
-                summary = (f"Question: {question}\n\n" + (expl + "\n\n" if expl else "") + f"Notes: trends summary (by={by})\n" + ("\n".join(f"- {c}" for c in caveats)))
+                summary = (
+                    f"Question: {question}\n\n"
+                    + (expl + "\n\n" if expl else "")
+                    + ("Hypotheses:\n" + hypo + "\n\n" if hypo else "")
+                    + f"Notes: trends summary (by={by})\n"
+                    + ("\n".join(f"- {c}" for c in caveats))
+                )
                 run_dir = reporter.save_artifacts({"intent": "analytic", "notes": "trends"}, None, result, summary, latency_sec=latency)
                 (console.print(Panel.fit(f"Artifacts saved to {run_dir} (Latency: {latency:.2f}s)")) if console else print(f"Artifacts saved to {run_dir} (Latency: {latency:.2f}s)"))
             return 0
@@ -321,12 +399,23 @@ def main(argv=None):
             latency = _time.time() - t0
             concise = make_concise_answer(result, {"analytics": "anomalies_vs_category"})
             (console.print(concise) if console else print(concise))
+            htxt = f"Heuristic: analytics trigger 'anomalies_vs_category' (z>={z}, min_days={min_days}, year={year}, state={state}, rec_del_sign={rds})"
+            llm_txt = f"LLM(explain): model={args.model}, enabled={'YES' if os.environ.get('OPENAI_API_KEY') else 'NO'}"
+            (console.print(Panel.fit(htxt)) if console else print(htxt))
+            (console.print(Panel.fit(llm_txt)) if console else print(llm_txt))
             _render_result(console, "anomalous locations vs category baseline", result)
             if args.save_run:
                 reporter = Reporter()
                 expl = summarize_answer(question, f"--analytics: anomalies_vs_category (z>={z}, min_days={min_days})", result, args.model) or ""
+                hypo = generate_hypotheses(question, expl or f"anomalies_vs_category (z>={z}, min_days={min_days})", args.model) or ""
                 caveats = build_caveats(result, {"analytics": "anomalies_vs_category", "profile": prof})
-                summary = (f"Question: {question}\n\n" + (expl + "\n\n" if expl else "") + f"Notes: category baseline z-threshold {z}, min days {min_days}\n" + ("\n".join(f"- {c}" for c in caveats)))
+                summary = (
+                    f"Question: {question}\n\n"
+                    + (expl + "\n\n" if expl else "")
+                    + ("Hypotheses:\n" + hypo + "\n\n" if hypo else "")
+                    + f"Notes: category baseline z-threshold {z}, min days {min_days}\n"
+                    + ("\n".join(f"- {c}" for c in caveats))
+                )
                 run_dir = reporter.save_artifacts({"intent": "analytic", "notes": "anomalies_vs_category"}, None, result, summary, latency_sec=latency)
                 (console.print(Panel.fit(f"Artifacts saved to {run_dir} (Latency: {latency:.2f}s)")) if console else print(f"Artifacts saved to {run_dir} (Latency: {latency:.2f}s)"))
             return 0
@@ -337,6 +426,10 @@ def main(argv=None):
             latency = _time.time() - t0
             concise = make_concise_answer(result, {"analytics": "trends"})
             (console.print(concise) if console else print(concise))
+            htxt = f"Heuristic: analytics trigger 'trends' (by={by}) via rule parser"
+            llm_txt = f"LLM(explain): model={args.model}, enabled={'YES' if os.environ.get('OPENAI_API_KEY') else 'NO'}"
+            (console.print(Panel.fit(htxt)) if console else print(htxt))
+            (console.print(Panel.fit(llm_txt)) if console else print(llm_txt))
             _render_result(console, f"trends summary by {by}", result)
             if args.save_run:
                 reporter = Reporter()
@@ -366,13 +459,24 @@ def main(argv=None):
                     latency = _time.time() - t0
                     concise = make_concise_answer(result, {"analytics": "correlation"})
                     (console.print(concise) if console else print(concise))
+                    htxt = f"Heuristic: LLM planner tool='correlation' (method={method}, include_pvalue={include_pvalue})"
+                    llm_txt = f"LLM(planner): model={args.model}, used={'YES' if os.environ.get('OPENAI_API_KEY') else 'NO'}"
+                    (console.print(Panel.fit(htxt)) if console else print(htxt))
+                    (console.print(Panel.fit(llm_txt)) if console else print(llm_txt))
                     _render_result(console, "pipeline correlation (top pairs)", result)
                     if args.save_run:
                         reporter = Reporter()
                         expl = summarize_answer(question, f"--analytics: correlation_pipelines (method={method}, include_pvalue={include_pvalue})", result, args.model) or ""
+                        hypo = generate_hypotheses(question, expl or f"correlation (method={method})", args.model) or ""
                         caveats = build_caveats(result, {"analytics": "correlation", "profile": prof, "method": method, "include_pvalue": include_pvalue})
                         missing_note = "Missing-value handling: COALESCE(scheduled_quantity,0) for totals."
-                        summary = (f"Question: {question}\n\n" + (expl + "\n\n" if expl else "") + f"Notes: correlation (method={method}, include_pvalue={include_pvalue})\n- {missing_note}\n" + ("\n".join(f"- {c}" for c in caveats)))
+                        summary = (
+                            f"Question: {question}\n\n"
+                            + (expl + "\n\n" if expl else "")
+                            + ("Hypotheses:\n" + hypo + "\n\n" if hypo else "")
+                            + f"Notes: correlation (method={method}, include_pvalue={include_pvalue})\n- {missing_note}\n"
+                            + ("\n".join(f"- {c}" for c in caveats))
+                        )
                         plan = {"intent": "analytic", "notes": "correlation", "params": {"method": method, "include_pvalue": include_pvalue}, "pseudo": "pivot daily totals by pipeline, compute pairwise correlations"}
                         reporter.save_artifacts(plan, None, result, summary, latency_sec=latency)
                     return 0
@@ -386,13 +490,24 @@ def main(argv=None):
                     latency = _time.time() - t0
                     concise = make_concise_answer(result, {"analytics": "clustering"})
                     (console.print(concise) if console else print(concise))
+                    htxt = f"Heuristic: LLM planner tool='clustering' (k={k}, scaling={scaling}, algorithm={algorithm}, seed={seed})"
+                    llm_txt = f"LLM(planner): model={args.model}, used={'YES' if os.environ.get('OPENAI_API_KEY') else 'NO'}"
+                    (console.print(Panel.fit(htxt)) if console else print(htxt))
+                    (console.print(Panel.fit(llm_txt)) if console else print(llm_txt))
                     _render_result(console, f"pipeline clusters (k={k}, scaling={scaling}, algorithm={algorithm}, seed={seed})", result)
                     if args.save_run:
                         reporter = Reporter()
                         expl = summarize_answer(question, f"--analytics: cluster_pipelines_monthly (k={k}, scaling={scaling}, algorithm={algorithm}, seed={seed})", result, args.model) or ""
+                        hypo = generate_hypotheses(question, expl or f"clustering (k={k}, scaling={scaling})", args.model) or ""
                         caveats = build_caveats(result, {"analytics": "clustering", "profile": prof, "algorithm": algorithm})
                         missing_note = "Missing-value handling: COALESCE(scheduled_quantity,0) for totals."
-                        summary = (f"Question: {question}\n\n" + (expl + "\n\n" if expl else "") + f"Notes: clustering (k={k}, scaling={scaling}, algorithm={algorithm}, seed={seed})\n- {missing_note}\n" + ("\n".join(f"- {c}" for c in caveats)))
+                        summary = (
+                            f"Question: {question}\n\n"
+                            + (expl + "\n\n" if expl else "")
+                            + ("Hypotheses:\n" + hypo + "\n\n" if hypo else "")
+                            + f"Notes: clustering (k={k}, scaling={scaling}, algorithm={algorithm}, seed={seed})\n- {missing_note}\n"
+                            + ("\n".join(f"- {c}" for c in caveats))
+                        )
                         plan = {"intent": "analytic", "notes": "clustering", "params": {"k": k, "scaling": scaling, "algorithm": algorithm, "seed": seed}, "pseudo": "monthly totals by pipeline -> scale -> (MiniBatch)KMeans -> labels & silhouette"}
                         reporter.save_artifacts(plan, None, result, summary, latency_sec=latency)
                     return 0
@@ -402,14 +517,25 @@ def main(argv=None):
                     latency = _time.time() - t0
                     concise = make_concise_answer(result, {"analytics": "anomalies_vs_category"})
                     (console.print(concise) if console else print(concise))
+                    htxt = f"Heuristic: LLM planner tool='anomalies_vs_category'"
+                    llm_txt = f"LLM(planner): model={args.model}, used={'YES' if os.environ.get('OPENAI_API_KEY') else 'NO'}"
+                    (console.print(Panel.fit(htxt)) if console else print(htxt))
+                    (console.print(Panel.fit(llm_txt)) if console else print(llm_txt))
                     _render_result(console, "anomalous locations vs category baseline", result)
                     if args.save_run:
                         reporter = Reporter()
                         z = params.get('z_threshold'); mnd = params.get('min_anomaly_days'); yr = params.get('year'); st = params.get('state'); rds = params.get('rec_del_sign')
                         expl = summarize_answer(question, f"--analytics: anomalies_vs_category (z>={z}, min_days={mnd}, year={yr}, state={st}, rec_del_sign={rds})", result, args.model) or ""
+                        hypo = generate_hypotheses(question, expl or f"anomalies_vs_category (z>={z}, min_days={mnd})", args.model) or ""
                         caveats = build_caveats(result, {"analytics": "anomalies_vs_category", "profile": prof})
                         missing_note = "Missing-value handling: COALESCE(scheduled_quantity,0) for totals."
-                        summary = (f"Question: {question}\n\n" + (expl + "\n\n" if expl else "") + f"Notes: category baseline anomalies (z>={z}, min_days={mnd})\n- {missing_note}\n" + ("\n".join(f"- {c}" for c in caveats)))
+                        summary = (
+                            f"Question: {question}\n\n"
+                            + (expl + "\n\n" if expl else "")
+                            + ("Hypotheses:\n" + hypo + "\n\n" if hypo else "")
+                            + f"Notes: category baseline anomalies (z>={z}, min_days={mnd})\n- {missing_note}\n"
+                            + ("\n".join(f"- {c}" for c in caveats))
+                        )
                         plan = {"intent": "analytic", "notes": "anomalies_vs_category", "params": {"z_threshold": z, "min_anomaly_days": mnd, "year": yr, "state": st, "rec_del_sign": rds}, "pseudo": "per-day per-category baselines -> z-scores per location -> group & rank"}
                         reporter.save_artifacts(plan, None, result, summary, latency_sec=latency)
                     return 0
@@ -420,13 +546,24 @@ def main(argv=None):
                     latency = _time.time() - t0
                     concise = make_concise_answer(result, {"analytics": "anomalies_iqr"})
                     (console.print(concise) if console else print(concise))
+                    htxt = f"Heuristic: LLM planner tool='anomalies_iqr' (k={k})"
+                    llm_txt = f"LLM(planner): model={args.model}, used={'YES' if os.environ.get('OPENAI_API_KEY') else 'NO'}"
+                    (console.print(Panel.fit(htxt)) if console else print(htxt))
+                    (console.print(Panel.fit(llm_txt)) if console else print(llm_txt))
                     _render_result(console, "daily outliers by IQR", result)
                     if args.save_run:
                         reporter = Reporter()
                         expl = summarize_answer(question, f"--analytics: anomalies_iqr (k={k})", result, args.model) or ""
+                        hypo = generate_hypotheses(question, expl or f"anomalies_iqr (k={k})", args.model) or ""
                         caveats = build_caveats(result, {"analytics": "anomalies_iqr", "profile": prof})
                         missing_note = "Missing-value handling: COALESCE(scheduled_quantity,0) for totals."
-                        summary = (f"Question: {question}\n\n" + (expl + "\n\n" if expl else "") + f"Notes: IQR outliers (k={k})\n- {missing_note}\n" + ("\n".join(f"- {c}" for c in caveats)))
+                        summary = (
+                            f"Question: {question}\n\n"
+                            + (expl + "\n\n" if expl else "")
+                            + ("Hypotheses:\n" + hypo + "\n\n" if hypo else "")
+                            + f"Notes: IQR outliers (k={k})\n- {missing_note}\n"
+                            + ("\n".join(f"- {c}" for c in caveats))
+                        )
                         plan = {"intent": "analytic", "notes": "anomalies_iqr", "params": {"k": k}, "pseudo": "daily totals -> IQR fences -> flag outliers"}
                         reporter.save_artifacts(plan, None, result, summary, latency_sec=latency)
                     return 0
@@ -438,13 +575,24 @@ def main(argv=None):
                     latency = _time.time() - t0
                     concise = make_concise_answer(result, {"analytics": "sudden_shifts"})
                     (console.print(concise) if console else print(concise))
+                    htxt = f"Heuristic: LLM planner tool='sudden_shifts' (window={window}, sigma={sigma})"
+                    llm_txt = f"LLM(planner): model={args.model}, used={'YES' if os.environ.get('OPENAI_API_KEY') else 'NO'}"
+                    (console.print(Panel.fit(htxt)) if console else print(htxt))
+                    (console.print(Panel.fit(llm_txt)) if console else print(llm_txt))
                     _render_result(console, f"sudden shifts (window={window}, sigma={sigma})", result)
                     if args.save_run:
                         reporter = Reporter()
                         expl = summarize_answer(question, f"--analytics: sudden_shifts (window={window}, sigma={sigma})", result, args.model) or ""
+                        hypo = generate_hypotheses(question, expl or f"sudden_shifts (window={window}, sigma={sigma})", args.model) or ""
                         caveats = build_caveats(result, {"analytics": "sudden_shifts", "profile": prof})
                         missing_note = "Missing-value handling: COALESCE(scheduled_quantity,0) for totals."
-                        summary = (f"Question: {question}\n\n" + (expl + "\n\n" if expl else "") + f"Notes: sudden shifts (window={window}, sigma={sigma})\n- {missing_note}\n" + ("\n".join(f"- {c}" for c in caveats)))
+                        summary = (
+                            f"Question: {question}\n\n"
+                            + (expl + "\n\n" if expl else "")
+                            + ("Hypotheses:\n" + hypo + "\n\n" if hypo else "")
+                            + f"Notes: sudden shifts (window={window}, sigma={sigma})\n- {missing_note}\n"
+                            + ("\n".join(f"- {c}" for c in caveats))
+                        )
                         plan = {"intent": "analytic", "notes": "sudden_shifts", "params": {"window": window, "sigma": sigma}, "pseudo": "daily totals -> rolling mean/std -> |x-mean|/std >= sigma"}
                         reporter.save_artifacts(plan, None, result, summary, latency_sec=latency)
                     return 0
@@ -455,13 +603,24 @@ def main(argv=None):
                     latency = _time.time() - t0
                     concise = make_concise_answer(result, {"analytics": "trends"})
                     (console.print(concise) if console else print(concise))
+                    htxt = f"Heuristic: LLM planner tool='trends' (by={by})"
+                    llm_txt = f"LLM(planner): model={args.model}, used={'YES' if os.environ.get('OPENAI_API_KEY') else 'NO'}"
+                    (console.print(Panel.fit(htxt)) if console else print(htxt))
+                    (console.print(Panel.fit(llm_txt)) if console else print(llm_txt))
                     _render_result(console, f"trends summary by {by}", result)
                     if args.save_run:
                         reporter = Reporter()
                         expl = summarize_answer(question, f"--analytics: trends_summary (by={by})", result, args.model) or ""
+                        hypo = generate_hypotheses(question, expl or f"trends (by={by})", args.model) or ""
                         caveats = build_caveats(result, {"analytics": "trends", "profile": prof})
                         missing_note = "Missing-value handling: COALESCE(scheduled_quantity,0) for totals."
-                        summary = (f"Question: {question}\n\n" + (expl + "\n\n" if expl else "") + f"Notes: trends (by={by})\n- {missing_note}\n" + ("\n".join(f"- {c}" for c in caveats)))
+                        summary = (
+                            f"Question: {question}\n\n"
+                            + (expl + "\n\n" if expl else "")
+                            + ("Hypotheses:\n" + hypo + "\n\n" if hypo else "")
+                            + f"Notes: trends (by={by})\n- {missing_note}\n"
+                            + ("\n".join(f"- {c}" for c in caveats))
+                        )
                         plan = {"intent": "analytic", "notes": "trends", "params": {"by": by}, "pseudo": "aggregate totals by period -> growth & MAs"}
                         reporter.save_artifacts(plan, None, result, summary, latency_sec=latency)
                     return 0
@@ -484,6 +643,10 @@ def main(argv=None):
         latency = _time.time() - t0
         concise = make_concise_answer(result, {"intent": parsed.intent})
         (console.print(concise) if console else print(concise))
+        htxt = f"Heuristic: deterministic rule plan ({parsed.notes})"
+        llm_txt = f"LLM(explain): model={args.model}, enabled={'YES' if os.environ.get('OPENAI_API_KEY') else 'NO'}"
+        (console.print(Panel.fit(htxt)) if console else print(htxt))
+        (console.print(Panel.fit(llm_txt)) if console else print(llm_txt))
         _render_result(console, parsed.notes, result)
         if args.save_run:
             reporter = Reporter()
