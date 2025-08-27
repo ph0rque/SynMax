@@ -9,6 +9,7 @@ Decision: Use DuckDB as the primary engine for Parquet queries; optionally use P
 ## Next steps
 1) Performance tuning on large datasets; validate USE_POLARS gains.
 2) Extend examples as new datasets/segments are added.
+3) Maintain docs on heuristic panels (docs/heuristics.md) and ensure tests cover panel presence.
 
 ## Open questions
 - Do we need join support across multiple Parquet files for v1? (Assume no.)

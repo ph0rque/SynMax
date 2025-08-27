@@ -77,6 +77,8 @@ Build a CLI-first, chat-based Python agent that analyzes a large local Parquet d
    - Command: `synmax-agent`
    - Non-interactive `--query` and interactive chat loop.
    - Print concise answer first, then show executed SQL and tabular results; print latency.
+   - Transparency panels: print `Heuristic:` (rule/trigger and parameters) and `LLM(explain|planner):` (model usage) after the answer.
+   - Test visibility: set `SHOW_IT=1` and run with `-s` to see CLI output during tests.
 
 ## 5) Non-functional requirements
 - Accuracy first; summaries cannot contradict executed results.

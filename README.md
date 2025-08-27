@@ -68,6 +68,18 @@ Artifacts now include parameters and pseudo-steps for analytics (e.g., clusterin
 
 If `OPENAI_API_KEY` is set, the agent will propose 1–3 cautious, evidence-linked hypotheses after the result summary, each with caveats and a suggested follow-up. Set `OPENAI_MODEL` to override the default.
 
+## Heuristics and LLM panels
+
+After the `Answer:` line, the CLI prints:
+- `Heuristic:` which rule/trigger ran and key parameters
+- `LLM(explain|planner):` model name and whether it was used
+
+To view during tests, use:
+```
+SHOW_IT=1 pytest -q -s
+```
+See `docs/heuristics.md` for the NL→action mapping and parameters.
+
 ## Features
 - DuckDB over Parquet with projection pruning and predicate pushdown
 - Rule-based planner for common questions; SQL builder with validation

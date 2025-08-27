@@ -1,6 +1,7 @@
 import os, subprocess, sys
 
 PYTHON = sys.executable
+SHOW_IT = os.environ.get("SHOW_IT", "0") in {"1", "true", "True"}
 
 from agent.exec.duck import DuckDBExecutor
 from agent.tools.analytics import daily_totals, anomalies_vs_category
@@ -11,7 +12,10 @@ def run_query(q: str):
     # point to fixture dir so default discovery finds it? We'll pass --path
     cmd = [PYTHON, '-m', 'agent.cli.main', '--path', 'tests/fixtures/sample.parquet', '--query', q]
     proc = subprocess.run(cmd, capture_output=True, text=True)
-    return proc.returncode, proc.stdout + proc.stderr
+    out = proc.stdout + proc.stderr
+    if SHOW_IT:
+        print(f"\n=== Integration Output for: {q} ===\n{out}\n=== End Output ===\n")
+    return proc.returncode, out
 
 
 def test_cli_top_pipelines():
@@ -42,30 +46,61 @@ def test_cli_correlation():
     code, out = run_query('show pipeline correlation')
     assert code == 0
     assert 'Answer:' in out
+    assert 'Heuristic:' in out
+    assert 'LLM(' in out
 
 
 def test_cli_clustering_with_scaling():
-    code, out = run_query('cluster pipelines monthly k=3 scale=minmax')
+    code, out = run_query('cluster pipelines monthly k=3 scale=minmax algorithm=minibatch seed=7')
     assert code == 0
     assert 'Answer:' in out
+    assert 'Heuristic:' in out
+    assert 'LLM(' in out
 
 
 def test_cli_correlation_spearman_with_pvalues():
     code, out = run_query('show pipeline correlation method=spearman pvalue=true')
     assert code == 0
     assert 'Answer:' in out
+    assert 'Heuristic:' in out
 
 
 def test_cli_anomalies_iqr():
     code, out = run_query('find IQR anomalies k=1.5')
     assert code == 0
     assert 'Answer:' in out
+    assert 'Heuristic:' in out
 
 
 def test_cli_sudden_shifts():
     code, out = run_query('detect sudden shifts window=5 sigma=2.0')
     assert code == 0
     assert 'Answer:' in out
+    assert 'Heuristic:' in out
+
+
+def test_cli_anomalies_vs_category_panels():
+    code, out = run_query('identify anomalous points that behave outside of their point categories in 2024 state TX deliveries z=2.5 min_days=2')
+    assert code == 0
+    assert 'Answer:' in out
+    assert 'Heuristic:' in out
+    assert 'LLM(' in out
+
+
+def test_cli_seasonality_panels():
+    code, out = run_query('seasonality by pipeline_name')
+    assert code == 0
+    assert 'Answer:' in out
+    assert 'Heuristic:' in out
+    assert 'LLM(' in out
+
+
+def test_cli_top_trending_panels():
+    code, out = run_query('top trending by pipeline_name top 3 min-months=3')
+    assert code == 0
+    assert 'Answer:' in out
+    assert 'Heuristic:' in out
+    assert 'LLM(' in out
 
 
 def test_cli_seasonality():
