@@ -89,6 +89,11 @@ See `docs/heuristics.md` for the NL→action mapping and parameters.
 - LLM explanations (metadata-only by default; optional row preview)
 - Artifacts saved under `./runs/<timestamp>/` (plan.json, query.sql, results.json, summary.md) and retention via `RUNS_RETENTION`
 
+### Deterministic planning depth
+- Multiple filters: supports `IN(...)`, `BETWEEN ... AND ...`, and `=` tokens (AND-chained)
+- Multiple group-by dimensions and computed date buckets: `date_trunc('month'|'quarter'|'week'|'year', eff_gas_day)`
+- Avoids LLM fallback when a deterministic plan is feasible; surfaces suggestions for ambiguous columns
+
 ## Privacy
 - Experimental project; avoid sharing the dataset externally.
 - No raw rows sent to LLM unless `ALLOW_LLM_RAW_PREVIEW=1`.

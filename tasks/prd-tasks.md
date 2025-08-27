@@ -47,10 +47,10 @@ Subtasks:
 
 ## 5b) Deterministic planner v2 (depth)
 Subtasks:
-- [ ] 5b.1 Support multiple filters (AND-chains) and operators, including BETWEEN/IN and mixed scalar/list params.
-- [ ] 5b.2 Support multiple group-by dimensions and computed date buckets (e.g., date_trunc variants), with validation.
-- [ ] 5b.3 Avoid LLM fallback when deterministic plan is possible; return actionable suggestions when not.
-- [ ] 5b.4 Unit tests covering multi-dim/multi-filter/computed-dim plans.
+- [x] 5b.1 Support multiple filters (AND-chains) and operators, including BETWEEN/IN and mixed scalar/list params.
+- [x] 5b.2 Support multiple group-by dimensions and computed date buckets (e.g., date_trunc variants), with validation.
+- [x] 5b.3 Avoid LLM fallback when deterministic plan is possible; return actionable suggestions when not.
+- [x] 5b.4 Unit tests covering multi-dim/multi-filter/computed-dim plans.
 
 ## 5a) NL planning & hypothesis generation
 Subtasks:
