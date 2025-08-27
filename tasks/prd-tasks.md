@@ -45,6 +45,13 @@ Subtasks:
 - [x] 5.4 Emit reproducible SQL and parameter bindings.
 - [x] 5.5 Error handling: unknown columns, ambiguous terms. (fallback message)
 
+## 5b) Deterministic planner v2 (depth)
+Subtasks:
+- [ ] 5b.1 Support multiple filters (AND-chains) and operators, including BETWEEN/IN and mixed scalar/list params.
+- [ ] 5b.2 Support multiple group-by dimensions and computed date buckets (e.g., date_trunc variants), with validation.
+- [ ] 5b.3 Avoid LLM fallback when deterministic plan is possible; return actionable suggestions when not.
+- [ ] 5b.4 Unit tests covering multi-dim/multi-filter/computed-dim plans.
+
 ## 5a) NL planning & hypothesis generation
 Subtasks:
 - [x] 5a.1 Expand rule-based planner to understand trend queries (e.g., "trend by month for X", "MoM growth for Y in 2024", rolling averages) and emit appropriate SQL/aggregation plans. (added 'trends' special)
@@ -63,6 +70,7 @@ Subtasks:
 - [x] 6a.1 Persist non-SQL analytics parameters: method names, thresholds, window sizes, k, scaling, seed, sample sizes, significance levels in `plan.json`. (added params in saved plan)
 - [x] 6a.2 Save concise code snippet or pseudo-SQL for analytics steps in artifacts (e.g., clustering, correlation tests) to ensure reproducibility. (added 'pseudo')
 - [x] 6a.3 Ensure latency, sampling, and missing-value handling notes are included in `summary.md`. (added missing-value note)
+- [ ] 6a.4 Add minimum observation thresholds and significance reporting where applicable (e.g., correlation pairs), and document multiple-comparisons caveats.
 
 ## 7) Analytics tools
 Subtasks:
@@ -80,6 +88,7 @@ Subtasks:
 - [x] 7a.2 Expand Anomalies with IQR method (configurable 1.5×/3× fences) and sudden shift detection (rolling mean/variance or basic CUSUM), with parameters persisted to artifacts. (anomalies_iqr, sudden_shifts)
 - [x] 7a.3 Extend Correlations to include Spearman rank and significance (p-values) with minimum observation thresholds and multiple-comparisons warning. (method param + p-values)
 - [x] 7a.4 Add MiniBatch KMeans option and persist clustering parameters (k, scaling, random seed) and silhouette scores to artifacts. (algorithm, seed)
+- [ ] 7a.5 Explore temporal clustering (time series shape-based clustering) and multivariate correlation screening as advanced (bonus) features.
 
 ## 8) Privacy guardrails
 Subtasks:
@@ -108,6 +117,7 @@ Subtasks:
 Subtasks:
 - [x] 10a.1 Add end-to-end examples for trends (MoM/YoY), anomalies (IQR and sudden shifts), correlations (Spearman with p-values), and clustering (MiniBatch with silhouette).
 - [x] 10a.2 Document hypothesis generation examples with caveats and linkage to evidence.
+- [ ] 10a.3 Add docs on viewing transparency panels (Heuristic/LLM) and `SHOW_IT` usage (link to `docs/heuristics.md`).
 
 
 ## Dependencies and Parallelization Plan (Swarming)
@@ -119,7 +129,7 @@ Subtasks:
 
 ### Revised waves to include gap-closure items
 - Wave 2.5 (parallel): 4a.1 (missing-value strategy), 6a.1–6a.3 (reproducibility params/artifacts), 9a.1 (retention enforcement).
-- Wave 3 (parallel, updated): 5a.1–5a.4 (NL planning + hypothesis), 7a.1–7a.4 (analytics enhancements), 10a.1–10a.2 (enhanced docs/examples).
+- Wave 3 (parallel, updated): 5a.1–5a.4 (NL planning + hypothesis), 5b.1–5b.4 (deterministic depth), 6a.4 (method guardrails), 7a.1–7a.5 (analytics enhancements), 10a.1–10a.3 (enhanced docs/examples).
 
 Dependency edges (summary):
 - 1 → {2, 3, 4}

@@ -41,6 +41,7 @@ Build a CLI-first, chat-based Python agent that analyzes a large local Parquet d
    - Classify intent (deterministic vs analytic) and produce a plan.
    - LLM explanations: summarize results/methods/caveats; optional plan refinement.
    - Hypothesis generation: propose 1–3 plausible causes for findings (never assertions), each linked to observed evidence and accompanied by explicit caveats/assumptions.
+   - Deterministic planning depth: support multiple filters, multiple group-by dimensions, and computed dimensions (e.g., date_trunc buckets); avoid unnecessary LLM fallback for purely deterministic requests.
 
 3. Execution engine
    - DuckDB-first on Parquet (`read_parquet`); pushdown filters; project needed columns.
@@ -72,11 +73,14 @@ Build a CLI-first, chat-based Python agent that analyzes a large local Parquet d
    - Save under `./runs/<timestamp>/` (plan.json, query.sql, results.json, summary.md). Keep latest N (env `RUNS_RETENTION`).
    - For non-SQL analytics (e.g., clustering, correlation tests), save a parameters JSON (method, thresholds, k, scaling, seed, sample sizes, significance levels) and a concise code snippet or pseudo-SQL describing steps.
    - Include explicit notes on missing-value handling and any sampling used.
+   - Apply method guardrails: minimum observation thresholds (e.g., for correlations), alpha/significance reporting, and multiple-comparisons warnings where applicable.
 
 6. CLI UX
    - Command: `synmax-agent`
    - Non-interactive `--query` and interactive chat loop.
    - Print concise answer first, then show executed SQL and tabular results; print latency.
+   - Transparency panels: print `Heuristic:` (rule/trigger and parameters) and `LLM(explain|planner):` (model usage) after the answer (see `docs/heuristics.md`).
+   - Test visibility: set `SHOW_IT=1` and run with `-s` to surface panels during tests.
    - Transparency panels: print `Heuristic:` (rule/trigger and parameters) and `LLM(explain|planner):` (model usage) after the answer.
    - Test visibility: set `SHOW_IT=1` and run with `-s` to see CLI output during tests.
 
@@ -85,6 +89,7 @@ Build a CLI-first, chat-based Python agent that analyzes a large local Parquet d
 - Latency targets (8-core M2, 16GB): deterministic < 5–10s; analytics < 15s typical.
 - Resource efficiency: avoid full materialization; operate on projections/aggregates.
 - Reliability: input validation, clear error messages, safe fallbacks.
+ - Maintainability/Extensibility: DRY analytics orchestration via a registry and shared helpers (artifact writer, caveats, hypothesis), minimizing duplication in the CLI.
 
 ## 6) Architecture
 - CLI Orchestrator, Planner (rule-based + LLM explanation), Tools (profile/run_sql/stats/anomaly/corr/cluster), Executor (DuckDB), Reporter (answer+evidence+latency), Utils (schema cache, privacy helpers).
@@ -100,6 +105,10 @@ Build a CLI-first, chat-based Python agent that analyzes a large local Parquet d
 - README documents install, dataset, env, examples, assumptions.
  - Hypothesis generation produces 1–3 plausible, evidence-linked causes with clear caveats and never contradicts executed results.
  - Analytics artifacts capture parameters, seeds, sample sizes, and methods sufficient for reproduction.
+ - Transparency: `Heuristic:` and `LLM(...)` panels are printed and covered by tests.
+ - Deterministic planner handles multi-filter, multi-group-by, and computed dimensions without LLM fallback where feasible.
+ - Method guardrails: correlations respect minimum observations and report p-values when requested; clustering records seed, algorithm, and silhouette; anomalies document thresholds.
+ - Unit tests cover core analytics functions (correlations, clustering, anomalies, trends) including edge cases (NaNs, low variance, degenerate parameters).
 
 ## 9) Risks & mitigations
 - Performance: strict projection/pushdown; sampled exploration; aggregate-first.
@@ -111,4 +120,5 @@ Build a CLI-first, chat-based Python agent that analyzes a large local Parquet d
 - M2: Deterministic planner + DuckDB execution + evidence output + latency.
 - M3: Analytics (trends, anomalies, correlations, clustering) + concise answers + LLM explanations.
 - M3.5: Hypothesis generation and NL planning enhancements (trend parsing, tool parameterization, significance reporting).
+ - M3.6: DRY refactor of CLI analytics orchestration (registry + shared helpers) and deterministic planner v2 (multi-filter/multi-dim/computed dims) with unit tests.
 - M4: README/Examples and performance tuning.
