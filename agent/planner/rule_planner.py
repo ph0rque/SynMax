@@ -65,6 +65,36 @@ def _parse_filters(ql: str, schema: SchemaSnapshot) -> List[Filter]:
         filters.append(Filter(column=_find_column(schema, 'rec_del_sign'), op='=', value=-1))
     if 'deliveries' in ql and _find_column(schema, 'rec_del_sign'):
         filters.append(Filter(column=_find_column(schema, 'rec_del_sign'), op='=', value=1))
+    # Generic IN filter: "<col> in (A, B, C)" or "<col> in A,B"
+    for mm in re.finditer(r"\b([a-zA-Z0-9_]+)\s+in\s*\(([^\)]+)\)", ql):
+        token = mm.group(1)
+        raw = mm.group(2)
+        col = _find_column(schema, token)
+        if not col:
+            continue
+        vals = [v.strip().strip("'\"") for v in raw.split(',') if v.strip()]
+        if vals:
+            filters.append(Filter(column=col, op='IN', value=vals))
+    for mm in re.finditer(r"\b([a-zA-Z0-9_]+)\s+in\s+([A-Za-z0-9_,\- ]+)", ql):
+        token = mm.group(1)
+        raw = mm.group(2)
+        col = _find_column(schema, token)
+        if not col:
+            continue
+        vals = [v.strip().strip("'\"") for v in raw.split(',') if v.strip()]
+        if vals:
+            filters.append(Filter(column=col, op='IN', value=vals))
+    # BETWEEN dates: "col between YYYY-MM-DD and YYYY-MM-DD"
+    m = re.search(r"\b([a-zA-Z0-9_]+)\s+between\s+(\d{4}-\d{2}-\d{2})\s+and\s+(\d{4}-\d{2}-\d{2})", ql)
+    if m:
+        col = _find_column(schema, m.group(1))
+        if col:
+            filters.append(Filter(column=col, op='BETWEEN', value=[m.group(2), m.group(3)]))
+    # Equality filters: "col=value" simple tokens
+    for mm in re.finditer(r"\b([a-zA-Z0-9_]+)\s*=\s*([A-Za-z0-9_\-]+)\b", ql):
+        col = _find_column(schema, mm.group(1))
+        if col:
+            filters.append(Filter(column=col, op='=', value=mm.group(2)))
     return filters
 
 
@@ -109,24 +139,38 @@ def parse_simple(question: str, schema: SchemaSnapshot) -> "ParseResult":
         else:
             return ParseResult(plan=None, intent="unknown", notes="unknown column for distinct", suggestions=_suggest_columns(schema, token))
 
-    # TOTAL scheduled_quantity (optionally by <col> or by month)
+    # TOTAL scheduled_quantity (optionally by <col> or time buckets, supports multi-dim group-by)
     if "scheduled_quantity" in ql and ("sum" in ql or "total" in ql):
-        by = None
-        m = re.search(r"by\s+([a-zA-Z0-9_]+)", ql)
+        dims: List[str] = []
+        m = re.search(r"by\s+([a-zA-Z0-9_,\s]+)", ql)
         if m:
-            by = _find_column(schema, m.group(1))
+            tokens = [t.strip() for t in m.group(1).split(',') if t.strip()]
+            for tok in tokens:
+                col = _find_column(schema, tok)
+                if col:
+                    dims.append(col)
         aggs = {"total_scheduled_quantity": "SUM(scheduled_quantity)"}
-        group_by: List[str] = [by] if by else []
+        group_by: List[str] = dims.copy()
         select_exprs: Dict[str, str] = {}
         group_by_exprs: List[str] = []
-        if 'by month' in ql and _find_column(schema, 'eff_gas_day'):
-            select_exprs['month'] = "date_trunc('month', eff_gas_day)"
-            group_by_exprs.append("date_trunc('month', eff_gas_day)")
-        order_by: List[Tuple[str,str]] = [("total_scheduled_quantity", "DESC")] if (by or group_by_exprs) else []
+        if _find_column(schema, 'eff_gas_day'):
+            if 'by month' in ql:
+                select_exprs['month'] = "date_trunc('month', eff_gas_day)"
+                group_by_exprs.append("date_trunc('month', eff_gas_day)")
+            if 'by quarter' in ql:
+                select_exprs['quarter'] = "date_trunc('quarter', eff_gas_day)"
+                group_by_exprs.append("date_trunc('quarter', eff_gas_day)")
+            if 'by week' in ql:
+                select_exprs['week'] = "date_trunc('week', eff_gas_day)"
+                group_by_exprs.append("date_trunc('week', eff_gas_day)")
+            if 'by year' in ql:
+                select_exprs['year'] = "date_trunc('year', eff_gas_day)"
+                group_by_exprs.append("date_trunc('year', eff_gas_day)")
+        order_by: List[Tuple[str,str]] = [("total_scheduled_quantity", "DESC")] if (group_by or group_by_exprs) else []
         return ParseResult(
             intent="deterministic",
-            plan=QueryPlan(columns=[], filters=_parse_filters(ql, schema), group_by=group_by, aggregations=aggs, order_by=order_by, limit=10 if by else None, select_exprs=select_exprs or None, group_by_exprs=group_by_exprs or None),
-            notes=(f"sum scheduled_quantity by {by}" if by else ("sum scheduled_quantity by month" if group_by_exprs else "sum scheduled_quantity"))
+            plan=QueryPlan(columns=[], filters=_parse_filters(ql, schema), group_by=group_by, aggregations=aggs, order_by=order_by, limit=10 if group_by else None, select_exprs=select_exprs or None, group_by_exprs=group_by_exprs or None),
+            notes=("sum scheduled_quantity by " + ", ".join(group_by) if group_by else ("sum scheduled_quantity by time bucket" if group_by_exprs else "sum scheduled_quantity"))
         )
 
     # TOP N <col> by scheduled_quantity
@@ -151,25 +195,28 @@ def parse_simple(question: str, schema: SchemaSnapshot) -> "ParseResult":
         else:
             return ParseResult(plan=None, intent="unknown", notes="unknown column for top-n", suggestions=_suggest_columns(schema, token))
 
-    # GROUP BY <col> totals
-    m = re.search(r"total.*by\s+([a-zA-Z0-9_]+)", ql)
+    # GROUP BY <col>[, <col>...] totals
+    m = re.search(r"total.*by\s+([a-zA-Z0-9_,\s]+)", ql)
     if m:
-        token = m.group(1)
-        col = _find_column(schema, token)
-        if col:
+        tokens = [t.strip() for t in m.group(1).split(',') if t.strip()]
+        cols = [ _find_column(schema, t) for t in tokens ]
+        cols = [c for c in cols if c]
+        if cols:
             return ParseResult(
                 intent="deterministic",
                 plan=QueryPlan(
-                    columns=[col],
+                    columns=cols,
                     filters=_parse_filters(ql, schema),
-                    group_by=[col],
+                    group_by=cols,
                     aggregations={"total_scheduled_quantity": "SUM(scheduled_quantity)"},
                     order_by=[("total_scheduled_quantity", "DESC")],
                     limit=None,
                 ),
-                notes=f"totals by {col}"
+                notes=f"totals by {', '.join(cols)}"
             )
         else:
-            return ParseResult(plan=None, intent="unknown", notes="unknown column for totals", suggestions=_suggest_columns(schema, token))
+            # Suggest for the first unknown token
+            unk = tokens[0] if tokens else ""
+            return ParseResult(plan=None, intent="unknown", notes="unknown column for totals", suggestions=_suggest_columns(schema, unk))
 
     return ParseResult(plan=None, intent="unknown", notes="no simple parse")
